@@ -7,14 +7,14 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
-  Modal,
   Dimensions,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { ReceivedCat, Upload } from '../../types';
+import { colors, radius } from '../../lib/theme';
 
-const { width } = Dimensions.get('window');
+const { width, height: screenHeight } = Dimensions.get('window');
 const imageSize = (width - 48) / 3;
 
 type GalleryItem = (ReceivedCat | Upload) & { type: 'received' | 'uploaded' };
@@ -23,12 +23,11 @@ export default function GalleryScreen() {
   const { session, isTestMode, testUploads, testReceivedCats } = useAuth();
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [filter, setFilter] = useState<'all' | 'received' | 'uploaded'>('all');
 
   useEffect(() => {
     if (isTestMode) {
-      // 테스트 모드: testUploads와 testReceivedCats를 갤러리 아이템으로 변환
       const results: GalleryItem[] = [];
 
       if (filter === 'all' || filter === 'received') {
@@ -107,14 +106,22 @@ export default function GalleryScreen() {
     return null;
   };
 
-  const renderItem = ({ item }: { item: GalleryItem }) => {
+  const getHits = (item: GalleryItem) => {
+    return item.hits || 0;
+  };
+
+  const uploadedItems = items.filter((i) => i.type === 'uploaded');
+  const totalUploadCount = uploadedItems.length;
+  const totalUploadHits = uploadedItems.reduce((sum, i) => sum + getHits(i), 0);
+
+  const renderItem = ({ item, index }: { item: GalleryItem; index: number }) => {
     const imageUrl = getImageUrl(item);
     if (!imageUrl) return null;
 
     return (
       <TouchableOpacity
         style={styles.imageContainer}
-        onPress={() => setSelectedImage(imageUrl)}
+        onPress={() => setSelectedIndex(index)}
       >
         <Image
           source={{ uri: imageUrl }}
@@ -131,9 +138,68 @@ export default function GalleryScreen() {
             {item.type === 'received' ? 'R' : 'U'}
           </Text>
         </View>
+        {getHits(item) > 0 && (
+          <View style={styles.hitsOverlay}>
+            <Text style={styles.hitsOverlayText}>{getHits(item)}</Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
+
+  const renderFullscreenItem = ({ item }: { item: GalleryItem }) => {
+    const imageUrl = getImageUrl(item);
+    if (!imageUrl) return <View style={styles.fullscreenPage} />;
+
+    return (
+      <View style={styles.fullscreenPage}>
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.fullscreenImage}
+          resizeMode="contain"
+        />
+        <View style={styles.fullscreenOverlay}>
+          <View style={[
+            styles.fullscreenBadge,
+            item.type === 'received' ? styles.receivedBadge : styles.uploadedBadge,
+          ]}>
+            <Text style={styles.fullscreenBadgeText}>
+              {item.type === 'received' ? '받은 고양이' : '업로드'}
+            </Text>
+          </View>
+          {getHits(item) > 0 && (
+            <Text style={styles.fullscreenHits}>{getHits(item)} 뇽펀치</Text>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  if (selectedIndex !== null) {
+    return (
+      <View style={styles.fullscreenContainer}>
+        <FlatList
+          data={items}
+          renderItem={renderFullscreenItem}
+          keyExtractor={(item) => `fs-${item.type}-${item.id}`}
+          pagingEnabled
+          showsVerticalScrollIndicator={false}
+          initialScrollIndex={selectedIndex}
+          getItemLayout={(_, index) => ({
+            length: screenHeight,
+            offset: screenHeight * index,
+            index,
+          })}
+        />
+        <TouchableOpacity
+          style={styles.fullscreenClose}
+          onPress={() => setSelectedIndex(null)}
+        >
+          <Text style={styles.fullscreenCloseText}>×</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -156,8 +222,22 @@ export default function GalleryScreen() {
         ))}
       </View>
 
+      {filter === 'uploaded' && items.length > 0 && (
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryValue}>{totalUploadCount}</Text>
+            <Text style={styles.summaryLabel}>총 업로드</Text>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryValue}>{totalUploadHits}</Text>
+            <Text style={styles.summaryLabel}>총 뇽펀치</Text>
+          </View>
+        </View>
+      )}
+
       {isLoading ? (
-        <ActivityIndicator size="large" color="#FF6B9D" style={styles.loader} />
+        <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
       ) : items.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>아직 갤러리가 비어있어요</Text>
@@ -172,22 +252,6 @@ export default function GalleryScreen() {
           contentContainerStyle={styles.grid}
         />
       )}
-
-      <Modal visible={!!selectedImage} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setSelectedImage(null)}
-        >
-          {selectedImage && (
-            <Image
-              source={{ uri: selectedImage }}
-              style={styles.modalImage}
-              resizeMode="contain"
-            />
-          )}
-        </TouchableOpacity>
-      </Modal>
     </View>
   );
 }
@@ -195,7 +259,7 @@ export default function GalleryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5F7',
+    backgroundColor: colors.background,
   },
   filterContainer: {
     flexDirection: 'row',
@@ -205,22 +269,51 @@ const styles = StyleSheet.create({
   filterButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#fff',
+    borderRadius: radius.xl,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: colors.border,
   },
   filterButtonActive: {
-    backgroundColor: '#FF6B9D',
-    borderColor: '#FF6B9D',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   filterText: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
   },
   filterTextActive: {
-    color: '#fff',
+    color: colors.white,
     fontWeight: '600',
+  },
+  summaryCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.white,
+    marginHorizontal: 12,
+    marginBottom: 12,
+    borderRadius: radius.xl,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  summaryValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  summaryDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: colors.border,
   },
   loader: {
     flex: 1,
@@ -234,11 +327,11 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   emptySubText: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 8,
   },
   grid: {
@@ -248,7 +341,7 @@ const styles = StyleSheet.create({
     width: imageSize,
     height: imageSize,
     margin: 6,
-    borderRadius: 8,
+    borderRadius: radius.xl,
     overflow: 'hidden',
   },
   image: {
@@ -266,24 +359,83 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   receivedBadge: {
-    backgroundColor: '#FF6B9D',
+    backgroundColor: colors.primary,
   },
   uploadedBadge: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.success,
   },
   badgeText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 10,
     fontWeight: 'bold',
   },
-  modalOverlay: {
+  hitsOverlay: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: radius.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  hitsOverlayText: {
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  // Fullscreen vertical swipe viewer
+  fullscreenContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    backgroundColor: '#000',
+  },
+  fullscreenPage: {
+    width: width,
+    height: screenHeight,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalImage: {
+  fullscreenImage: {
     width: width,
     height: width,
+  },
+  fullscreenOverlay: {
+    position: 'absolute',
+    bottom: 100,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  fullscreenBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.xl,
+  },
+  fullscreenBadgeText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  fullscreenHits: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  fullscreenClose: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenCloseText: {
+    fontSize: 24,
+    color: colors.white,
+    fontWeight: 'bold',
   },
 });

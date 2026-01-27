@@ -11,9 +11,12 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
 import { supabase } from '../lib/supabase';
 import { CatPaw } from '../components/CatPaw';
 import { useAuth } from '../contexts/AuthContext';
+import { colors, radius } from '../lib/theme';
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -23,6 +26,32 @@ export default function OnboardingScreen() {
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      const redirectUrl = makeRedirectUri({ scheme: 'nyong', path: '(tabs)' });
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+        if (result.type === 'success') {
+          router.replace('/(tabs)');
+        }
+      }
+    } catch (error: any) {
+      Alert.alert('오류', error.message || 'Google 로그인에 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSignUp = async () => {
     if (!email || !password) {
@@ -55,7 +84,6 @@ export default function OnboardingScreen() {
       return;
     }
 
-    // 테스트용 admin 로그인
     if (email === 'admin' && password === 'admin') {
       setTestMode(true);
       router.replace('/(tabs)');
@@ -112,7 +140,7 @@ export default function OnboardingScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.content}>
-          <CatPaw width={120} height={120} color="#FF6B9D" />
+          <CatPaw width={120} height={120} />
           <Text style={styles.title}>뇽</Text>
           <Text style={styles.subtitle}>랜덤 고양이 알람</Text>
           <Text style={styles.description}>
@@ -123,10 +151,21 @@ export default function OnboardingScreen() {
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={styles.googleButton}
+            onPress={handleGoogleSignIn}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Text style={styles.googleButtonText}>Google로 시작하기</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
             onPress={() => setStep('signup')}
           >
-            <Text style={styles.primaryButtonText}>시작하기</Text>
+            <Text style={styles.emailLoginLink}>이메일로 로그인</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -140,7 +179,7 @@ export default function OnboardingScreen() {
         style={styles.container}
       >
         <View style={styles.content}>
-          <CatPaw width={80} height={80} color="#FF6B9D" />
+          <CatPaw width={80} height={80} />
           <Text style={styles.stepTitle}>닉네임 설정</Text>
           <Text style={styles.stepDescription}>
             다른 사용자에게 보여질 이름이에요
@@ -163,7 +202,7 @@ export default function OnboardingScreen() {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.primaryButtonText}>완료</Text>
             )}
@@ -179,7 +218,7 @@ export default function OnboardingScreen() {
       style={styles.container}
     >
       <View style={styles.content}>
-        <CatPaw width={80} height={80} color="#FF6B9D" />
+        <CatPaw width={80} height={80} />
         <Text style={styles.stepTitle}>로그인 / 회원가입</Text>
 
         <TextInput
@@ -207,7 +246,7 @@ export default function OnboardingScreen() {
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.white} />
           ) : (
             <Text style={styles.primaryButtonText}>로그인</Text>
           )}
@@ -232,7 +271,7 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5F7',
+    backgroundColor: colors.background,
   },
   content: {
     flex: 1,
@@ -243,17 +282,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: '#FF6B9D',
+    color: colors.primary,
     marginTop: 20,
   },
   subtitle: {
     fontSize: 18,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 8,
   },
   description: {
     fontSize: 16,
-    color: '#888',
+    color: colors.textTertiary,
     textAlign: 'center',
     marginTop: 20,
     lineHeight: 24,
@@ -261,21 +300,21 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
     marginTop: 20,
   },
   stepDescription: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 8,
     marginBottom: 30,
   },
   input: {
     width: '100%',
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: '#eee',
-    borderRadius: 12,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
@@ -286,32 +325,50 @@ const styles = StyleSheet.create({
     paddingBottom: 50,
     gap: 12,
   },
-  primaryButton: {
-    backgroundColor: '#FF6B9D',
+  googleButton: {
+    backgroundColor: colors.primary,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: radius.xl,
+    alignItems: 'center',
+  },
+  googleButtonText: {
+    color: colors.white,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  emailLoginLink: {
+    color: colors.textTertiary,
+    fontSize: 14,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+    marginTop: 4,
+  },
+  primaryButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: radius.xl,
     alignItems: 'center',
   },
   primaryButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 18,
     fontWeight: '600',
   },
   secondaryButton: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: radius.xl,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FF6B9D',
+    borderColor: colors.primary,
   },
   secondaryButtonText: {
-    color: '#FF6B9D',
+    color: colors.primary,
     fontSize: 18,
     fontWeight: '600',
   },
   backText: {
-    color: '#888',
+    color: colors.textTertiary,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 8,

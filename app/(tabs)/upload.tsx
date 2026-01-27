@@ -13,6 +13,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Upload } from '../../types';
+import { colors, radius } from '../../lib/theme';
+
+type VerificationState = 'idle' | 'verifying' | 'success' | 'failure';
 
 export default function UploadScreen() {
   const { session, isTestMode, testUploads, addTestUpload } = useAuth();
@@ -20,6 +23,7 @@ export default function UploadScreen() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [verificationState, setVerificationState] = useState<VerificationState>('idle');
 
   useEffect(() => {
     if (isTestMode) {
@@ -48,6 +52,14 @@ export default function UploadScreen() {
     }
   };
 
+  const verifyCatImage = () => {
+    setVerificationState('verifying');
+    setTimeout(() => {
+      const isCat = Math.random() < 0.9;
+      setVerificationState(isCat ? 'success' : 'failure');
+    }, 2000);
+  };
+
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -58,16 +70,29 @@ export default function UploadScreen() {
 
     if (!result.canceled && result.assets[0]) {
       setSelectedImage(result.assets[0].uri);
+      setVerificationState('idle');
+      // Start verification automatically
+      setTimeout(() => {
+        setVerificationState('verifying');
+        setTimeout(() => {
+          const isCat = Math.random() < 0.9;
+          setVerificationState(isCat ? 'success' : 'failure');
+        }, 2000);
+      }, 100);
     }
   };
 
-  const uploadImage = async () => {
-    if (!selectedImage) return;
+  const handleReselect = () => {
+    setSelectedImage(null);
+    setVerificationState('idle');
+    pickImage();
+  };
 
-    // 테스트 모드에서는 로컬에서만 시뮬레이션
+  const uploadImage = async () => {
+    if (!selectedImage || verificationState !== 'success') return;
+
     if (isTestMode) {
       setIsUploading(true);
-      // 업로드 시뮬레이션
       setTimeout(() => {
         const mockUpload: Upload = {
           id: Date.now(),
@@ -79,6 +104,7 @@ export default function UploadScreen() {
         addTestUpload(mockUpload);
         Alert.alert('성공', '고양이 사진이 업로드되었습니다! (테스트 모드)');
         setSelectedImage(null);
+        setVerificationState('idle');
         setIsUploading(false);
       }, 1000);
       return;
@@ -112,6 +138,7 @@ export default function UploadScreen() {
 
       Alert.alert('성공', '고양이 사진이 업로드되었습니다!');
       setSelectedImage(null);
+      setVerificationState('idle');
       fetchUploads();
     } catch (error) {
       console.log('Upload error:', error);
@@ -137,6 +164,38 @@ export default function UploadScreen() {
     </View>
   );
 
+  const renderVerificationStatus = () => {
+    if (verificationState === 'verifying') {
+      return (
+        <View style={styles.verificationContainer}>
+          <ActivityIndicator color={colors.primary} size="small" />
+          <Text style={styles.verificationText}>고양이 사진 확인 중...</Text>
+        </View>
+      );
+    }
+
+    if (verificationState === 'success') {
+      return (
+        <View style={styles.verificationContainer}>
+          <Text style={styles.verificationSuccess}>고양이 확인 완료!</Text>
+        </View>
+      );
+    }
+
+    if (verificationState === 'failure') {
+      return (
+        <View style={styles.verificationContainer}>
+          <Text style={styles.verificationFailure}>고양이 사진이 아닌 것 같아요</Text>
+          <TouchableOpacity style={styles.reselectButton} onPress={handleReselect}>
+            <Text style={styles.reselectButtonText}>다시 선택</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.uploadSection}>
@@ -155,14 +214,16 @@ export default function UploadScreen() {
           )}
         </TouchableOpacity>
 
-        {selectedImage && (
+        {selectedImage && renderVerificationStatus()}
+
+        {selectedImage && verificationState === 'success' && (
           <TouchableOpacity
             style={styles.uploadButton}
             onPress={uploadImage}
             disabled={isUploading}
           >
             {isUploading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.uploadButtonText}>업로드</Text>
             )}
@@ -173,7 +234,7 @@ export default function UploadScreen() {
       <View style={styles.historySection}>
         <Text style={styles.sectionTitle}>업로드 기록</Text>
         {isLoading ? (
-          <ActivityIndicator color="#FF6B9D" style={styles.loader} />
+          <ActivityIndicator color={colors.primary} style={styles.loader} />
         ) : (isTestMode ? testUploads : uploads).length === 0 ? (
           <Text style={styles.emptyText}>아직 업로드한 사진이 없어요</Text>
         ) : (
@@ -194,7 +255,7 @@ export default function UploadScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5F7',
+    backgroundColor: colors.background,
   },
   uploadSection: {
     padding: 20,
@@ -203,11 +264,11 @@ const styles = StyleSheet.create({
   pickButton: {
     width: 200,
     height: 200,
-    borderRadius: 16,
+    borderRadius: radius.xl,
     overflow: 'hidden',
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderWidth: 2,
-    borderColor: '#FF6B9D',
+    borderColor: colors.primary,
     borderStyle: 'dashed',
   },
   previewImage: {
@@ -221,22 +282,53 @@ const styles = StyleSheet.create({
   },
   placeholderIcon: {
     fontSize: 48,
-    color: '#FF6B9D',
+    color: colors.primary,
   },
   placeholderText: {
     fontSize: 16,
-    color: '#FF6B9D',
+    color: colors.primary,
     marginTop: 8,
   },
+  verificationContainer: {
+    marginTop: 16,
+    alignItems: 'center',
+    gap: 8,
+  },
+  verificationText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  verificationSuccess: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.success,
+  },
+  verificationFailure: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  reselectButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: radius.xl,
+  },
+  reselectButtonText: {
+    color: colors.white,
+    fontWeight: '600',
+    fontSize: 14,
+  },
   uploadButton: {
-    backgroundColor: '#FF6B9D',
+    backgroundColor: colors.primary,
     paddingHorizontal: 48,
     paddingVertical: 14,
-    borderRadius: 25,
+    borderRadius: radius.pill,
     marginTop: 20,
   },
   uploadButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontWeight: '600',
     fontSize: 16,
   },
@@ -247,7 +339,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
     paddingHorizontal: 20,
     marginBottom: 12,
   },
@@ -256,7 +348,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 20,
   },
@@ -270,7 +362,7 @@ const styles = StyleSheet.create({
   uploadImage: {
     width: 120,
     height: 120,
-    borderRadius: 12,
+    borderRadius: radius.xl,
   },
   uploadInfo: {
     marginTop: 8,
@@ -279,10 +371,10 @@ const styles = StyleSheet.create({
   uploadHits: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FF6B9D',
+    color: colors.primary,
   },
   uploadDate: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
   },
 });

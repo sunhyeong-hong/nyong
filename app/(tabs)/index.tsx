@@ -14,6 +14,7 @@ import { CatPaw } from '../../components/CatPaw';
 import { NotificationBanner } from '../../components/NotificationBanner';
 import { supabase } from '../../lib/supabase';
 import { ReceivedCat, Cat } from '../../types';
+import { colors, radius } from '../../lib/theme';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -45,7 +46,6 @@ export default function HomeScreen() {
     }
   }, [session, isTestMode]);
 
-  // 테스트 모드에서 testReceivedCats가 업데이트되면 todayCat도 업데이트
   useEffect(() => {
     if (isTestMode && testReceivedCats.length > 0) {
       setTodayCat(testReceivedCats[0].cat || null);
@@ -93,12 +93,13 @@ export default function HomeScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B9D" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   const displayRecentCats = isTestMode ? testReceivedCats : recentCats;
+  const isAdmin = profile?.is_admin || profile?.nickname === 'admin';
 
   return (
     <View style={styles.wrapper}>
@@ -120,7 +121,7 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.mainCard}>
-        <CatPaw width={80} height={80} color="#FF6B9D" />
+        <CatPaw width={80} height={80} />
         <Text style={styles.waitingText}>다음 뇽을 기다리는 중...</Text>
         <Text style={styles.subText}>알람이 오면 고양이를 터치하세요!</Text>
 
@@ -163,7 +164,7 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {profile?.is_admin && (
+      {isAdmin && (
         <TouchableOpacity
           style={styles.adminButton}
           onPress={() => router.push('/admin')}
@@ -179,7 +180,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    backgroundColor: '#FFF5F7',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
@@ -188,7 +189,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFF5F7',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -200,22 +201,22 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
   },
   settingsButton: {
     padding: 8,
   },
   settingsText: {
     fontSize: 16,
-    color: '#FF6B9D',
+    color: colors.primary,
   },
   mainCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     margin: 20,
     padding: 30,
-    borderRadius: 20,
+    borderRadius: radius.xl,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -224,23 +225,23 @@ const styles = StyleSheet.create({
   waitingText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
     marginTop: 16,
   },
   subText: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 8,
   },
   testButton: {
-    backgroundColor: '#FF6B9D',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 25,
+    borderRadius: radius.pill,
     marginTop: 20,
   },
   testButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontWeight: '600',
     fontSize: 16,
   },
@@ -251,13 +252,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
     marginBottom: 12,
   },
   todayCatImage: {
     width: '100%',
     height: 200,
-    borderRadius: 16,
+    borderRadius: radius.xl,
   },
   recentSection: {
     paddingLeft: 20,
@@ -269,24 +270,24 @@ const styles = StyleSheet.create({
   recentCatImage: {
     width: 100,
     height: 100,
-    borderRadius: 12,
+    borderRadius: radius.md,
   },
   hitsText: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
   },
   adminButton: {
-    backgroundColor: '#333',
+    backgroundColor: colors.adminButton,
     marginHorizontal: 20,
     marginBottom: 30,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: radius.xl,
     alignItems: 'center',
   },
   adminButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontWeight: '600',
     fontSize: 16,
   },

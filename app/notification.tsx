@@ -11,9 +11,10 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { CatPaw } from '../components/CatPaw';
+import { colors, radius } from '../lib/theme';
 
 const { width } = Dimensions.get('window');
-const COUNTDOWN_TIME = 10; // 테스트를 위해 10초로 설정
+const COUNTDOWN_TIME = 5;
 
 const FALLBACK_CAT_IMAGES = [
   'https://placekitten.com/400/400',
@@ -46,7 +47,6 @@ export default function NotificationScreen() {
     }
   }, [countdown, isFinished]);
 
-  // 종료 시 결과 저장
   useEffect(() => {
     if (isFinished && !isSaved && isTestMode) {
       addReceivedCat(catId, catImage, hits);
@@ -59,7 +59,6 @@ export default function NotificationScreen() {
 
     setHits(hits + 1);
 
-    // 스케일 애니메이션
     Animated.sequence([
       Animated.timing(scaleAnim, {
         toValue: 0.9,
@@ -73,7 +72,6 @@ export default function NotificationScreen() {
       }),
     ]).start();
 
-    // 흔들림 애니메이션
     Animated.sequence([
       Animated.timing(shakeAnim, {
         toValue: 10,
@@ -135,14 +133,14 @@ export default function NotificationScreen() {
         </Animated.View>
 
         <View style={styles.statsContainer}>
-          <CatPaw width={32} height={32} color="#FF6B9D" />
+          <CatPaw width={32} height={32} />
           <Text style={styles.hitsText}>{hits}</Text>
           <Text style={styles.hitsLabel}>뇽펀치!</Text>
         </View>
 
         {isFinished && (
           <View style={styles.resultContainer}>
-            <CatPaw width={60} height={60} color="#FF6B9D" />
+            <CatPaw width={60} height={60} />
             <Text style={styles.resultTitle}>시간 종료!</Text>
             <Text style={styles.resultText}>
               총 {hits}번의 뇽펀치를 날렸어요!
@@ -164,7 +162,7 @@ export default function NotificationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5F7',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -178,10 +176,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -190,24 +188,24 @@ const styles = StyleSheet.create({
   closeText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
   },
   timerContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    backgroundColor: '#FF6B9D',
+    backgroundColor: colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: radius.xl,
   },
   timerText: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.white,
   },
   timerLabel: {
     fontSize: 14,
-    color: '#fff',
+    color: colors.white,
     marginLeft: 4,
   },
   content: {
@@ -219,9 +217,9 @@ const styles = StyleSheet.create({
   catContainer: {
     width: width * 0.8,
     height: width * 0.8,
-    borderRadius: 20,
+    borderRadius: radius.xl,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
@@ -235,11 +233,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 30,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 30,
-    shadowColor: '#000',
+    borderRadius: radius.pill,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -248,17 +246,17 @@ const styles = StyleSheet.create({
   hitsText: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#FF6B9D',
+    color: colors.primary,
     marginLeft: 12,
   },
   hitsLabel: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     marginLeft: 8,
   },
   instruction: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 40,
   },
@@ -268,30 +266,30 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255, 245, 247, 0.98)',
+    backgroundColor: colors.resultOverlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   resultTitle: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#FF6B9D',
+    color: colors.primary,
     marginTop: 16,
   },
   resultText: {
     fontSize: 18,
-    color: '#333',
+    color: colors.text,
     marginTop: 12,
   },
   doneButton: {
-    backgroundColor: '#FF6B9D',
+    backgroundColor: colors.primary,
     paddingHorizontal: 48,
     paddingVertical: 14,
-    borderRadius: 25,
+    borderRadius: radius.pill,
     marginTop: 30,
   },
   doneButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontWeight: '600',
     fontSize: 18,
   },

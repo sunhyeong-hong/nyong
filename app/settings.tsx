@@ -9,10 +9,13 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { colors, radius } from '../lib/theme';
+import { TimePicker } from '../components/TimePicker';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -23,6 +26,8 @@ export default function SettingsScreen() {
   const [exclusionStart, setExclusionStart] = useState('00:00');
   const [exclusionEnd, setExclusionEnd] = useState('08:00');
   const [isSaving, setIsSaving] = useState(false);
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -81,6 +86,17 @@ export default function SettingsScreen() {
     );
   };
 
+  const parseTime = (timeStr: string) => {
+    const parts = timeStr.split(':');
+    return {
+      hour: parseInt(parts[0] || '0', 10),
+      minute: parseInt(parts[1] || '0', 10),
+    };
+  };
+
+  const startTime = parseTime(exclusionStart);
+  const endTime = parseTime(exclusionEnd);
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.section}>
@@ -109,8 +125,8 @@ export default function SettingsScreen() {
           <Switch
             value={useExclusion}
             onValueChange={setUseExclusion}
-            trackColor={{ false: '#ddd', true: '#FFB6C1' }}
-            thumbColor={useExclusion ? '#FF6B9D' : '#f4f3f4'}
+            trackColor={{ false: colors.switchTrackOff, true: colors.primaryLight }}
+            thumbColor={useExclusion ? colors.primary : '#f4f3f4'}
           />
         </View>
 
@@ -118,23 +134,21 @@ export default function SettingsScreen() {
           <View style={styles.timeContainer}>
             <View style={styles.timeInput}>
               <Text style={styles.label}>시작 시간</Text>
-              <TextInput
-                style={styles.input}
-                value={exclusionStart}
-                onChangeText={setExclusionStart}
-                placeholder="00:00"
-                keyboardType="numbers-and-punctuation"
-              />
+              <TouchableOpacity
+                style={styles.timeButton}
+                onPress={() => setShowStartPicker(true)}
+              >
+                <Text style={styles.timeButtonText}>{exclusionStart}</Text>
+              </TouchableOpacity>
             </View>
             <View style={styles.timeInput}>
               <Text style={styles.label}>종료 시간</Text>
-              <TextInput
-                style={styles.input}
-                value={exclusionEnd}
-                onChangeText={setExclusionEnd}
-                placeholder="08:00"
-                keyboardType="numbers-and-punctuation"
-              />
+              <TouchableOpacity
+                style={styles.timeButton}
+                onPress={() => setShowEndPicker(true)}
+              >
+                <Text style={styles.timeButtonText}>{exclusionEnd}</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -146,7 +160,7 @@ export default function SettingsScreen() {
         disabled={isSaving}
       >
         {isSaving ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.white} />
         ) : (
           <Text style={styles.saveButtonText}>저장</Text>
         )}
@@ -159,6 +173,52 @@ export default function SettingsScreen() {
       <View style={styles.footer}>
         <Text style={styles.footerText}>뇽 v1.0.0</Text>
       </View>
+
+      <Modal visible={showStartPicker} transparent animationType="fade">
+        <View style={styles.pickerOverlay}>
+          <View style={styles.pickerContainer}>
+            <Text style={styles.pickerTitle}>시작 시간</Text>
+            <TimePicker
+              initialHour={startTime.hour}
+              initialMinute={startTime.minute}
+              onTimeChange={(hour, minute) => {
+                setExclusionStart(
+                  `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+                );
+              }}
+            />
+            <TouchableOpacity
+              style={styles.pickerDoneButton}
+              onPress={() => setShowStartPicker(false)}
+            >
+              <Text style={styles.pickerDoneText}>확인</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showEndPicker} transparent animationType="fade">
+        <View style={styles.pickerOverlay}>
+          <View style={styles.pickerContainer}>
+            <Text style={styles.pickerTitle}>종료 시간</Text>
+            <TimePicker
+              initialHour={endTime.hour}
+              initialMinute={endTime.minute}
+              onTimeChange={(hour, minute) => {
+                setExclusionEnd(
+                  `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+                );
+              }}
+            />
+            <TouchableOpacity
+              style={styles.pickerDoneButton}
+              onPress={() => setShowEndPicker(false)}
+            >
+              <Text style={styles.pickerDoneText}>확인</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -166,19 +226,19 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5F7',
+    backgroundColor: colors.background,
   },
   section: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     marginHorizontal: 20,
     marginTop: 20,
     padding: 20,
-    borderRadius: 16,
+    borderRadius: radius.xl,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
     marginBottom: 16,
   },
   inputGroup: {
@@ -186,14 +246,14 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#f8f8f8',
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: '#eee',
-    borderRadius: 8,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
@@ -205,11 +265,11 @@ const styles = StyleSheet.create({
   },
   switchLabel: {
     fontSize: 16,
-    color: '#333',
+    color: colors.text,
   },
   switchDescription: {
     fontSize: 12,
-    color: '#888',
+    color: colors.textTertiary,
     marginTop: 4,
   },
   timeContainer: {
@@ -220,16 +280,30 @@ const styles = StyleSheet.create({
   timeInput: {
     flex: 1,
   },
+  timeButton: {
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  timeButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.primary,
+  },
   saveButton: {
-    backgroundColor: '#FF6B9D',
+    backgroundColor: colors.primary,
     marginHorizontal: 20,
     marginTop: 30,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: radius.xl,
     alignItems: 'center',
   },
   saveButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -237,13 +311,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 16,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: radius.xl,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.switchTrackOff,
   },
   signOutButtonText: {
-    color: '#888',
+    color: colors.textTertiary,
     fontSize: 16,
   },
   footer: {
@@ -252,6 +326,37 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
-    color: '#bbb',
+    color: colors.textDisabled,
+  },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerContainer: {
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
+    padding: 24,
+    width: 300,
+    alignItems: 'center',
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  pickerDoneButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 48,
+    paddingVertical: 12,
+    borderRadius: radius.xl,
+    marginTop: 16,
+  },
+  pickerDoneText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

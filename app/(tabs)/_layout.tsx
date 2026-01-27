@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors } from '../../lib/theme';
 
 function HomeIcon({ color }: { color: string }) {
   return (
@@ -81,18 +82,18 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#FF6B9D',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: colors.white,
           borderTopWidth: 1,
-          borderTopColor: '#eee',
+          borderTopColor: colors.border,
           height: 60 + insets.bottom,
           paddingBottom: insets.bottom + 8,
           paddingTop: 8,
         },
         headerStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: colors.white,
         },
         headerTitleStyle: {
           fontWeight: 'bold',

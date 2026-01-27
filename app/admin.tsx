@@ -8,13 +8,14 @@ import {
   Image,
   ActivityIndicator,
   Alert,
-  TextInput,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Cat } from '../types';
+import { colors, radius } from '../lib/theme';
+import { CalendarPicker } from '../components/CalendarPicker';
 
 export default function AdminScreen() {
   const router = useRouter();
@@ -23,10 +24,14 @@ export default function AdminScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [sortBy, setSortBy] = useState<'date' | 'hits'>('date');
+  const [sortBy, setSortBy] = useState<'date' | 'distributed' | 'hits'>('date');
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const isAdmin = profile?.is_admin || profile?.nickname === 'admin';
 
   useEffect(() => {
-    if (!profile?.is_admin) {
+    if (!isAdmin) {
       Alert.alert('권한 없음', '관리자만 접근할 수 있습니다.');
       router.back();
       return;
@@ -47,8 +52,10 @@ export default function AdminScreen() {
 
       if (sortBy === 'date') {
         query = query.order('deployed_at', { ascending: false });
-      } else {
+      } else if (sortBy === 'hits') {
         query = query.order('total_hits', { ascending: false });
+      } else {
+        query = query.order('distributed_count', { ascending: false });
       }
 
       const { data, error } = await query;
@@ -59,6 +66,14 @@ export default function AdminScreen() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getFilteredCats = () => {
+    if (!selectedDate) return cats;
+    return cats.filter((cat) => {
+      const catDate = new Date(cat.deployed_at).toISOString().split('T')[0];
+      return catDate === selectedDate;
+    });
   };
 
   const handleUploadCat = async () => {
@@ -118,6 +133,8 @@ export default function AdminScreen() {
     }
   };
 
+  const displayedCats = getFilteredCats();
+
   const renderCatItem = ({ item }: { item: Cat }) => (
     <View style={styles.catItem}>
       <Image source={{ uri: item.image_url }} style={styles.catImage} />
@@ -152,7 +169,7 @@ export default function AdminScreen() {
           disabled={isUploading}
         >
           {isUploading ? (
-            <ActivityIndicator color="#fff" size="small" />
+            <ActivityIndicator color={colors.white} size="small" />
           ) : (
             <Text style={styles.uploadButtonText}>+ 고양이 추가</Text>
           )}
@@ -179,40 +196,68 @@ export default function AdminScreen() {
           ))}
         </View>
         <View style={styles.sortGroup}>
-          <TouchableOpacity
-            style={[styles.sortButton, sortBy === 'date' && styles.sortActive]}
-            onPress={() => setSortBy('date')}
-          >
-            <Text
-              style={[
-                styles.sortText,
-                sortBy === 'date' && styles.sortTextActive,
-              ]}
+          {([
+            { key: 'date', label: '시간순' },
+            { key: 'distributed', label: '배포수순' },
+            { key: 'hits', label: '터치순' },
+          ] as const).map((s) => (
+            <TouchableOpacity
+              key={s.key}
+              style={[styles.sortButton, sortBy === s.key && styles.sortActive]}
+              onPress={() => setSortBy(s.key)}
             >
-              날짜순
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.sortButton, sortBy === 'hits' && styles.sortActive]}
-            onPress={() => setSortBy('hits')}
-          >
-            <Text
-              style={[
-                styles.sortText,
-                sortBy === 'hits' && styles.sortTextActive,
-              ]}
-            >
-              터치순
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.sortText,
+                  sortBy === s.key && styles.sortTextActive,
+                ]}
+              >
+                {s.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
 
+      <View style={styles.dateFilterRow}>
+        <TouchableOpacity
+          style={[styles.dateButton, showCalendar && styles.dateButtonActive]}
+          onPress={() => setShowCalendar(!showCalendar)}
+        >
+          <Text style={[styles.dateButtonText, showCalendar && styles.dateButtonTextActive]}>
+            {selectedDate || '날짜 선택'}
+          </Text>
+        </TouchableOpacity>
+        {selectedDate && (
+          <TouchableOpacity
+            style={styles.clearDateButton}
+            onPress={() => {
+              setSelectedDate(null);
+              setShowCalendar(false);
+            }}
+          >
+            <Text style={styles.clearDateText}>초기화</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {showCalendar && (
+        <View style={styles.calendarContainer}>
+          <CalendarPicker
+            selectedDate={selectedDate}
+            onDateSelect={(date) => {
+              setSelectedDate(date);
+              setShowCalendar(false);
+            }}
+          />
+        </View>
+      )}
+
       {isLoading ? (
-        <ActivityIndicator color="#FF6B9D" size="large" style={styles.loader} />
+        <ActivityIndicator color={colors.primary} size="large" style={styles.loader} />
       ) : (
         <FlatList
-          data={cats}
+          data={displayedCats}
           renderItem={renderCatItem}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.list}
@@ -228,22 +273,22 @@ export default function AdminScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5F7',
+    backgroundColor: colors.background,
   },
   header: {
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: colors.border,
   },
   uploadButton: {
-    backgroundColor: '#FF6B9D',
+    backgroundColor: colors.primary,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: radius.xl,
     alignItems: 'center',
   },
   uploadButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontWeight: '600',
     fontSize: 16,
   },
@@ -251,7 +296,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: 12,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
   },
   filterGroup: {
     flexDirection: 'row',
@@ -260,18 +305,18 @@ const styles = StyleSheet.create({
   filterButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
+    borderRadius: radius.xl,
+    backgroundColor: colors.filterBg,
   },
   filterActive: {
-    backgroundColor: '#FF6B9D',
+    backgroundColor: colors.primary,
   },
   filterText: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary,
   },
   filterTextActive: {
-    color: '#fff',
+    color: colors.white,
     fontWeight: '600',
   },
   sortGroup: {
@@ -284,15 +329,54 @@ const styles = StyleSheet.create({
   },
   sortActive: {
     borderBottomWidth: 2,
-    borderBottomColor: '#FF6B9D',
+    borderBottomColor: colors.primary,
   },
   sortText: {
     fontSize: 13,
-    color: '#888',
+    color: colors.textTertiary,
   },
   sortTextActive: {
-    color: '#FF6B9D',
+    color: colors.primary,
     fontWeight: '600',
+  },
+  dateFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  dateButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: radius.xl,
+    backgroundColor: colors.filterBg,
+  },
+  dateButtonActive: {
+    backgroundColor: colors.primaryLight,
+  },
+  dateButtonText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  dateButtonTextActive: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  clearDateButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  clearDateText: {
+    fontSize: 13,
+    color: colors.textTertiary,
+  },
+  calendarContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   loader: {
     marginTop: 40,
@@ -302,8 +386,8 @@ const styles = StyleSheet.create({
   },
   catItem: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
     padding: 12,
     marginBottom: 12,
     alignItems: 'center',
@@ -311,7 +395,7 @@ const styles = StyleSheet.create({
   catImage: {
     width: 60,
     height: 60,
-    borderRadius: 8,
+    borderRadius: radius.xl,
   },
   catInfo: {
     flex: 1,
@@ -319,32 +403,32 @@ const styles = StyleSheet.create({
   },
   catStats: {
     fontSize: 14,
-    color: '#333',
+    color: colors.text,
   },
   catDate: {
     fontSize: 12,
-    color: '#888',
+    color: colors.textTertiary,
     marginTop: 4,
   },
   statusButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: radius.xl,
   },
   activeButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.success,
   },
   inactiveButton: {
-    backgroundColor: '#999',
+    backgroundColor: colors.inactive,
   },
   statusButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 12,
     fontWeight: '600',
   },
   emptyText: {
     textAlign: 'center',
-    color: '#888',
+    color: colors.textTertiary,
     marginTop: 40,
   },
 });

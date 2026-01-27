@@ -8,6 +8,7 @@ import {
   Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, radius } from '../lib/theme';
 
 interface NotificationBannerProps {
   visible: boolean;
@@ -27,7 +28,6 @@ export function NotificationBanner({
 
   useEffect(() => {
     if (visible) {
-      // 슬라이드 다운
       Animated.spring(translateY, {
         toValue: 0,
         useNativeDriver: true,
@@ -35,14 +35,12 @@ export function NotificationBanner({
         friction: 8,
       }).start();
 
-      // 5초 후 자동 닫힘
       const timer = setTimeout(() => {
         onDismiss();
       }, 5000);
 
       return () => clearTimeout(timer);
     } else {
-      // 슬라이드 업
       Animated.timing(translateY, {
         toValue: -150,
         duration: 300,
@@ -94,10 +92,10 @@ const styles = StyleSheet.create({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B9D',
-    borderRadius: 16,
+    backgroundColor: colors.primary,
+    borderRadius: radius.xl,
     padding: 12,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -106,8 +104,8 @@ const styles = StyleSheet.create({
   thumbnail: {
     width: 50,
     height: 50,
-    borderRadius: 10,
-    backgroundColor: '#fff',
+    borderRadius: radius.sm,
+    backgroundColor: colors.white,
   },
   content: {
     flex: 1,
@@ -116,7 +114,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.white,
   },
   subtitle: {
     fontSize: 13,
@@ -133,7 +131,7 @@ const styles = StyleSheet.create({
   },
   closeText: {
     fontSize: 20,
-    color: '#fff',
+    color: colors.white,
     fontWeight: 'bold',
     marginTop: -2,
   },
