@@ -6,6 +6,12 @@ export interface Profile {
   exclusion_end: string;
   is_admin: boolean;
   created_at: string;
+  push_token?: string;
+  last_upload_date?: string;
+  last_receive_date?: string;
+  // Extra feature tracking
+  extra_count_today?: number;
+  extra_count_date?: string;
 }
 
 export interface Cat {
@@ -32,6 +38,20 @@ export interface Upload {
   image_url: string;
   hits: number;
   uploaded_at: string;
+  tag?: string | null;
+}
+
+export interface Delivery {
+  id: number;
+  upload_id: number;
+  sender_id: string;
+  receiver_id: string | null;
+  status: 'pending' | 'delivered' | 'received' | 'expired';
+  delivered_at: string | null;
+  received_at: string | null;
+  hits: number;
+  created_at: string;
+  upload?: Upload;
 }
 
 export interface AuthState {

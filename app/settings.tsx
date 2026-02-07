@@ -16,10 +16,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { colors, radius } from '../lib/theme';
 import { TimePicker } from '../components/TimePicker';
+import { t } from '../lib/i18n';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { profile, signOut, refreshProfile } = useAuth();
+  const isAdmin = profile?.is_admin || profile?.nickname === 'admin';
 
   const [nickname, setNickname] = useState('');
   const [useExclusion, setUseExclusion] = useState(false);
@@ -40,7 +42,7 @@ export default function SettingsScreen() {
 
   const handleSave = async () => {
     if (!nickname.trim()) {
-      Alert.alert('오류', '닉네임을 입력해주세요.');
+      Alert.alert(t().common.error, t().settings.errorEmptyNickname);
       return;
     }
 
@@ -59,10 +61,10 @@ export default function SettingsScreen() {
       if (error) throw error;
 
       await refreshProfile();
-      Alert.alert('성공', '설정이 저장되었습니다.');
+      Alert.alert(t().common.success, t().settings.saveSuccess);
       router.back();
     } catch (error: any) {
-      Alert.alert('오류', error.message || '저장에 실패했습니다.');
+      Alert.alert(t().common.error, error.message || t().settings.errorSaveFailed);
     } finally {
       setIsSaving(false);
     }
@@ -70,12 +72,12 @@ export default function SettingsScreen() {
 
   const handleSignOut = async () => {
     Alert.alert(
-      '로그아웃',
-      '정말 로그아웃 하시겠습니까?',
+      t().settings.logoutTitle,
+      t().settings.logoutMessage,
       [
-        { text: '취소', style: 'cancel' },
+        { text: t().common.cancel, style: 'cancel' },
         {
-          text: '로그아웃',
+          text: t().settings.logout,
           style: 'destructive',
           onPress: async () => {
             await signOut();
@@ -100,26 +102,26 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>프로필</Text>
+        <Text style={styles.sectionTitle}>{t().settings.profileSection}</Text>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>닉네임</Text>
+          <Text style={styles.label}>{t().settings.nicknameLabel}</Text>
           <TextInput
             style={styles.input}
             value={nickname}
             onChangeText={setNickname}
-            placeholder="닉네임을 입력하세요"
+            placeholder={t().settings.nicknamePlaceholder}
             maxLength={20}
           />
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>알람 설정</Text>
+        <Text style={styles.sectionTitle}>{t().settings.alarmSection}</Text>
         <View style={styles.switchRow}>
           <View>
-            <Text style={styles.switchLabel}>알람 제외 시간 사용</Text>
+            <Text style={styles.switchLabel}>{t().settings.exclusionToggle}</Text>
             <Text style={styles.switchDescription}>
-              설정한 시간에는 알람이 오지 않습니다
+              {t().settings.exclusionDescription}
             </Text>
           </View>
           <Switch
@@ -133,7 +135,7 @@ export default function SettingsScreen() {
         {useExclusion && (
           <View style={styles.timeContainer}>
             <View style={styles.timeInput}>
-              <Text style={styles.label}>시작 시간</Text>
+              <Text style={styles.label}>{t().settings.startTime}</Text>
               <TouchableOpacity
                 style={styles.timeButton}
                 onPress={() => setShowStartPicker(true)}
@@ -142,7 +144,7 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
             <View style={styles.timeInput}>
-              <Text style={styles.label}>종료 시간</Text>
+              <Text style={styles.label}>{t().settings.endTime}</Text>
               <TouchableOpacity
                 style={styles.timeButton}
                 onPress={() => setShowEndPicker(true)}
@@ -162,22 +164,31 @@ export default function SettingsScreen() {
         {isSaving ? (
           <ActivityIndicator color={colors.white} />
         ) : (
-          <Text style={styles.saveButtonText}>저장</Text>
+          <Text style={styles.saveButtonText}>{t().common.save}</Text>
         )}
       </TouchableOpacity>
 
+      {isAdmin && (
+        <TouchableOpacity
+          style={styles.adminButton}
+          onPress={() => router.push('/admin')}
+        >
+          <Text style={styles.adminButtonText}>{t().settings.adminPage}</Text>
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-        <Text style={styles.signOutButtonText}>로그아웃</Text>
+        <Text style={styles.signOutButtonText}>{t().settings.logout}</Text>
       </TouchableOpacity>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>뇽 v1.0.0</Text>
+        <Text style={styles.footerText}>{t().settings.version}</Text>
       </View>
 
       <Modal visible={showStartPicker} transparent animationType="fade">
         <View style={styles.pickerOverlay}>
           <View style={styles.pickerContainer}>
-            <Text style={styles.pickerTitle}>시작 시간</Text>
+            <Text style={styles.pickerTitle}>{t().settings.startTime}</Text>
             <TimePicker
               initialHour={startTime.hour}
               initialMinute={startTime.minute}
@@ -191,7 +202,7 @@ export default function SettingsScreen() {
               style={styles.pickerDoneButton}
               onPress={() => setShowStartPicker(false)}
             >
-              <Text style={styles.pickerDoneText}>확인</Text>
+              <Text style={styles.pickerDoneText}>{t().common.confirm}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -200,7 +211,7 @@ export default function SettingsScreen() {
       <Modal visible={showEndPicker} transparent animationType="fade">
         <View style={styles.pickerOverlay}>
           <View style={styles.pickerContainer}>
-            <Text style={styles.pickerTitle}>종료 시간</Text>
+            <Text style={styles.pickerTitle}>{t().settings.endTime}</Text>
             <TimePicker
               initialHour={endTime.hour}
               initialMinute={endTime.minute}
@@ -214,7 +225,7 @@ export default function SettingsScreen() {
               style={styles.pickerDoneButton}
               onPress={() => setShowEndPicker(false)}
             >
-              <Text style={styles.pickerDoneText}>확인</Text>
+              <Text style={styles.pickerDoneText}>{t().common.confirm}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -305,6 +316,19 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: colors.white,
     fontSize: 18,
+    fontWeight: '600',
+  },
+  adminButton: {
+    backgroundColor: colors.adminButton,
+    marginHorizontal: 20,
+    marginTop: 16,
+    paddingVertical: 16,
+    borderRadius: radius.xl,
+    alignItems: 'center',
+  },
+  adminButtonText: {
+    color: colors.white,
+    fontSize: 16,
     fontWeight: '600',
   },
   signOutButton: {

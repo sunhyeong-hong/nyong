@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius } from '../lib/theme';
+import { t } from '../lib/i18n';
 
 interface NotificationBannerProps {
   visible: boolean;
@@ -68,8 +69,8 @@ export function NotificationBanner({
       >
         <Image source={{ uri: catImage }} style={styles.thumbnail} />
         <View style={styles.content}>
-          <Text style={styles.title}>뇽! 고양이가 왔어요!</Text>
-          <Text style={styles.subtitle}>터치해서 뇽펀치를 날려보세요</Text>
+          <Text style={styles.title}>{t().banner.title}</Text>
+          <Text style={styles.subtitle}>{t().banner.subtitle}</Text>
         </View>
         <TouchableOpacity style={styles.closeButton} onPress={onDismiss}>
           <Text style={styles.closeText}>×</Text>

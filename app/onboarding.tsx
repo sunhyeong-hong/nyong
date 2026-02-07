@@ -17,6 +17,7 @@ import { supabase } from '../lib/supabase';
 import { CatPaw } from '../components/CatPaw';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, radius } from '../lib/theme';
+import { t } from '../lib/i18n';
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -26,28 +27,55 @@ export default function OnboardingScreen() {
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      const redirectUrl = makeRedirectUri({ scheme: 'nyong', path: '(tabs)' });
+      // Expo Go에서는 native redirect 사용
+      const redirectUrl = makeRedirectUri({
+        native: 'nyong://',
+      });
+
+      console.log('Redirect URL:', redirectUrl);
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
         },
       });
 
       if (error) throw error;
 
       if (data?.url) {
-        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-        if (result.type === 'success') {
-          router.replace('/(tabs)');
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          redirectUrl
+        );
+
+        if (result.type === 'success' && result.url) {
+          // URL에서 access_token과 refresh_token 추출
+          const url = new URL(result.url);
+          const params = new URLSearchParams(url.hash.substring(1));
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+
+          if (accessToken && refreshToken) {
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+
+            if (sessionError) throw sessionError;
+            router.replace('/(tabs)');
+          }
         }
       }
     } catch (error: any) {
-      Alert.alert('오류', error.message || 'Google 로그인에 실패했습니다.');
+      console.error('Google login error:', error);
+      Alert.alert(t().common.error, error.message || t().onboarding.errorGoogleLogin);
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +83,7 @@ export default function OnboardingScreen() {
 
   const handleSignUp = async () => {
     if (!email || !password) {
-      Alert.alert('오류', '이메일과 비밀번호를 입력해주세요.');
+      Alert.alert(t().common.error, t().onboarding.errorEmptyFields);
       return;
     }
 
@@ -69,10 +97,11 @@ export default function OnboardingScreen() {
       if (error) throw error;
 
       if (data.user) {
+        setPendingUserId(data.user.id);
         setStep('nickname');
       }
     } catch (error: any) {
-      Alert.alert('오류', error.message || '회원가입에 실패했습니다.');
+      Alert.alert(t().common.error, error.message || t().onboarding.errorSignup);
     } finally {
       setIsLoading(false);
     }
@@ -80,7 +109,7 @@ export default function OnboardingScreen() {
 
   const handleSignIn = async () => {
     if (!email || !password) {
-      Alert.alert('오류', '이메일과 비밀번호를 입력해주세요.');
+      Alert.alert(t().common.error, t().onboarding.errorEmptyFields);
       return;
     }
 
@@ -100,7 +129,7 @@ export default function OnboardingScreen() {
       if (error) throw error;
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('오류', error.message || '로그인에 실패했습니다.');
+      Alert.alert(t().common.error, error.message || t().onboarding.errorLogin);
     } finally {
       setIsLoading(false);
     }
@@ -108,18 +137,20 @@ export default function OnboardingScreen() {
 
   const handleSetNickname = async () => {
     if (!nickname.trim()) {
-      Alert.alert('오류', '닉네임을 입력해주세요.');
+      Alert.alert(t().common.error, t().onboarding.errorEmptyNickname);
       return;
     }
 
     setIsLoading(true);
     try {
+      // 세션이 있으면 세션의 user 사용, 없으면 pendingUserId 사용
       const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || pendingUserId;
 
-      if (!user) throw new Error('사용자를 찾을 수 없습니다.');
+      if (!userId) throw new Error(t().onboarding.errorUserNotFound);
 
       const { error } = await supabase.from('profiles').upsert({
-        id: user.id,
+        id: userId,
         nickname: nickname.trim(),
         use_exclusion: false,
         exclusion_start: '00:00',
@@ -128,9 +159,19 @@ export default function OnboardingScreen() {
       });
 
       if (error) throw error;
-      router.replace('/(tabs)');
+
+      // 이메일 확인이 필요한 경우 안내
+      if (!user) {
+        Alert.alert(
+          t().onboarding.signupSuccessTitle,
+          t().onboarding.signupSuccessMessage,
+          [{ text: t().common.confirm, onPress: () => setStep('signup') }]
+        );
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch (error: any) {
-      Alert.alert('오류', error.message || '프로필 설정에 실패했습니다.');
+      Alert.alert(t().common.error, error.message || t().onboarding.errorProfileSetup);
     } finally {
       setIsLoading(false);
     }
@@ -141,11 +182,10 @@ export default function OnboardingScreen() {
       <View style={styles.container}>
         <View style={styles.content}>
           <CatPaw width={120} height={120} />
-          <Text style={styles.title}>뇽</Text>
-          <Text style={styles.subtitle}>랜덤 고양이 알람</Text>
+          <Text style={styles.title}>{t().onboarding.appName}</Text>
+          <Text style={styles.subtitle}>{t().onboarding.appTagline}</Text>
           <Text style={styles.description}>
-            하루에 한 번, 랜덤한 시간에{'\n'}
-            귀여운 고양이가 찾아옵니다!
+            {t().onboarding.appDescription}
           </Text>
         </View>
 
@@ -158,14 +198,14 @@ export default function OnboardingScreen() {
             {isLoading ? (
               <ActivityIndicator color={colors.white} />
             ) : (
-              <Text style={styles.googleButtonText}>Google로 시작하기</Text>
+              <Text style={styles.googleButtonText}>{t().onboarding.googleLogin}</Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => setStep('signup')}
           >
-            <Text style={styles.emailLoginLink}>이메일로 로그인</Text>
+            <Text style={styles.emailLoginLink}>{t().onboarding.emailLogin}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -180,14 +220,14 @@ export default function OnboardingScreen() {
       >
         <View style={styles.content}>
           <CatPaw width={80} height={80} />
-          <Text style={styles.stepTitle}>닉네임 설정</Text>
+          <Text style={styles.stepTitle}>{t().onboarding.nicknameTitle}</Text>
           <Text style={styles.stepDescription}>
-            다른 사용자에게 보여질 이름이에요
+            {t().onboarding.nicknameDescription}
           </Text>
 
           <TextInput
             style={styles.input}
-            placeholder="닉네임"
+            placeholder={t().onboarding.nicknamePlaceholder}
             value={nickname}
             onChangeText={setNickname}
             autoFocus
@@ -204,7 +244,7 @@ export default function OnboardingScreen() {
             {isLoading ? (
               <ActivityIndicator color={colors.white} />
             ) : (
-              <Text style={styles.primaryButtonText}>완료</Text>
+              <Text style={styles.primaryButtonText}>{t().common.complete}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -219,11 +259,11 @@ export default function OnboardingScreen() {
     >
       <View style={styles.content}>
         <CatPaw width={80} height={80} />
-        <Text style={styles.stepTitle}>로그인 / 회원가입</Text>
+        <Text style={styles.stepTitle}>{t().onboarding.loginTitle}</Text>
 
         <TextInput
           style={styles.input}
-          placeholder="이메일"
+          placeholder={t().onboarding.emailPlaceholder}
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
@@ -232,7 +272,7 @@ export default function OnboardingScreen() {
 
         <TextInput
           style={styles.input}
-          placeholder="비밀번호"
+          placeholder={t().onboarding.passwordPlaceholder}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -248,7 +288,7 @@ export default function OnboardingScreen() {
           {isLoading ? (
             <ActivityIndicator color={colors.white} />
           ) : (
-            <Text style={styles.primaryButtonText}>로그인</Text>
+            <Text style={styles.primaryButtonText}>{t().onboarding.loginButton}</Text>
           )}
         </TouchableOpacity>
 
@@ -257,11 +297,11 @@ export default function OnboardingScreen() {
           onPress={handleSignUp}
           disabled={isLoading}
         >
-          <Text style={styles.secondaryButtonText}>회원가입</Text>
+          <Text style={styles.secondaryButtonText}>{t().onboarding.signupButton}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => setStep('welcome')}>
-          <Text style={styles.backText}>뒤로가기</Text>
+          <Text style={styles.backText}>{t().common.back}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -302,6 +342,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.text,
     marginTop: 20,
+    marginBottom: 24,
   },
   stepDescription: {
     fontSize: 14,

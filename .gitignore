@@ -40,3 +40,10 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Build artifacts
+*.aab
+*.apk
+
+# Google Service Account (sensitive)
+google-service-account*.json

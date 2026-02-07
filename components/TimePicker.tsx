@@ -20,8 +20,13 @@ export function TimePicker({ initialHour, initialMinute, onTimeChange }: TimePic
   const minuteRef = useRef<FlatList>(null);
   const selectedHour = useRef(initialHour);
   const selectedMinute = useRef(initialMinute);
+  const isInitialized = useRef(false);
 
   useEffect(() => {
+    // 최초 마운트 시에만 스크롤 위치 설정
+    if (isInitialized.current) return;
+    isInitialized.current = true;
+
     setTimeout(() => {
       hourRef.current?.scrollToOffset({
         offset: initialHour * ITEM_HEIGHT,
@@ -32,7 +37,7 @@ export function TimePicker({ initialHour, initialMinute, onTimeChange }: TimePic
         animated: false,
       });
     }, 100);
-  }, [initialHour, initialMinute]);
+  }, []);
 
   const onHourViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
