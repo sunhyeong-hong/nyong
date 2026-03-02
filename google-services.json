@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "230183427677",
+    "project_id": "nyong-486113",
+    "storage_bucket": "nyong-486113.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:230183427677:android:0e1ebae78cd475a0a7f7b4",
+        "android_client_info": {
+          "package_name": "com.nyong.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "230183427677-kn39qndvacdgi0pffh1dml1jkn8mao58.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCVscIBRMjlkOZPfvmd5iMFmcOuIzCQVos"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "230183427677-kn39qndvacdgi0pffh1dml1jkn8mao58.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -16,6 +16,7 @@ import { supabase } from '../lib/supabase';
 import { Cat } from '../types';
 import { colors, radius } from '../lib/theme';
 import { CalendarPicker } from '../components/CalendarPicker';
+import { Toast } from '../components/Toast';
 
 export default function AdminScreen() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function AdminScreen() {
   const [sortBy, setSortBy] = useState<'date' | 'distributed' | 'hits'>('date');
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [toast, setToast] = useState({ visible: false, message: '' });
 
   const isAdmin = profile?.is_admin || profile?.nickname === 'admin';
 
@@ -109,7 +111,7 @@ export default function AdminScreen() {
 
       if (dbError) throw dbError;
 
-      Alert.alert('성공', '고양이가 추가되었습니다.');
+      setToast({ visible: true, message: '고양이가 추가되었습니다.' });
       fetchCats();
     } catch (error) {
       console.log('Upload error:', error);
@@ -161,6 +163,7 @@ export default function AdminScreen() {
   );
 
   return (
+    <>
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
@@ -267,6 +270,12 @@ export default function AdminScreen() {
         />
       )}
     </View>
+    <Toast
+      visible={toast.visible}
+      message={toast.message}
+      onHide={() => setToast({ visible: false, message: '' })}
+    />
+    </>
   );
 }
 

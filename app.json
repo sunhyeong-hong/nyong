@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "뇽",
+    "name": "뇽파민",
     "slug": "nyong-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "scheme": "nyong",
+    "scheme": "nyongpamin",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
+      "image": "./assets/screen.png",
+      "resizeMode": "cover",
       "backgroundColor": "#ffffff"
     },
     "ios": {
@@ -19,16 +19,19 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#FCE4EC"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.nyong.app",
+      "versionCode": 28,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE"
-      ]
+        "VIBRATE",
+        "com.google.android.gms.permission.AD_ID"
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -38,11 +41,25 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
+          "icon": "./assets/nyong_paw.png",
           "color": "#E88B99"
+        }
+      ],
+      "expo-font",
+      "expo-updates",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-4591317861924477~8090446533"
         }
       ]
     ],
+    "updates": {
+      "url": "https://u.expo.dev/b7354b39-b61c-4470-bbc5-f5fab6a0d32b"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "extra": {
       "eas": {
         "projectId": "b7354b39-b61c-4470-bbc5-f5fab6a0d32b"

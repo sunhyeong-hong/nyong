@@ -1,207 +1,153 @@
-# 🐾 nyong (뇽)
+# nyong (뇽파민)
 
-> 하루 한 번, 예고 없이 찾아오는 고양이 조각
+> 하루 한 번, 예고 없이 찾아오는 랜덤 고양이 알림
 >
-> "일상의 틈새를 채우는 5초간의 도파민, 말랑한 젤리 한 조각을 배달해 드립니다."
+> 터치할수록 솟아오르는 뇽파민(도파민), 말랑한 젤리 한 조각을 배달해 드립니다.
 
-## 🌟 프로젝트 개요
+## 프로젝트 개요
 
-**nyong**은 바쁜 일상을 살아가는 현대인들에게 하루 한 번 무작위 시각에 귀여운 고양이 사진을 전송하여 짧지만 강력한 힐링 타임을 제공하는 앱입니다.
+**뇽파민**은 하루에 딱 한 번, 아무도 모르는 랜덤한 시간에 귀여운 고양이(뇽) 사진이 푸시 알림으로 찾아오는 앱입니다.
 
-복잡한 소셜 미디어 피드에서 벗어나, 오직 한 장의 사진에만 집중하고 반응하는 특별한 경험을 선사합니다.
+내 고양이를 등록하고, 사진을 다른 집사들에게 보내고, 받은 뇽을 마구 터치해서 뇽펀치를 날리세요. 이번 달 가장 많은 뇽펀치를 받은 뇽은 명예의 전당에 오릅니다.
 
-## 🎯 주요 목표
+## 핵심 기능
 
-- 사용자가 설정한 제외 시간을 피해 랜덤한 시각에 푸시 알림 발송
-- 알람 클릭 후 5초간의 '뇽 펀치' 인터랙션으로 도파민 극대화
-- 고양이를 자랑하고 싶은 '뇽급자'와 힐링이 필요한 '수요자'를 연결
+### 1. 뇽펀치
 
-## ✨ 핵심 기능
+알림이 오면 10초 안에 고양이 사진을 미친 듯이 터치합니다.
 
-### 1. 온보딩 및 개인화 설정
+- **10초 카운트다운** — 타임바가 줄어드는 동안 최대한 많이 터치
+- **발바닥 이펙트** — 터치할 때마다 발바닥 자국 + 플로팅 숫자 애니메이션
+- **햅틱 피드백** — 5, 10, 20, 50회 등 마일스톤마다 다른 진동
+- **단계별 반응** — "살살 해달라냥..." → "좋아! 더 더!" → "뇽파민 폭발!!" → "전설의 집사 등장!!!"
+- **자동 저장** — 뇽펀치를 1개라도 준 사진은 갤러리에 자동 저장
 
-- **간편 로그인** — 구글 계정 연동을 통한 간편 가입
-- **제외 시간 설정** — 수면 시간이나 업무 시간 등 알람을 받고 싶지 않은 시간대를 분 단위로 직접 설정
-- **닉네임 설정** — 서비스 내에서 불릴 나만의 집사 닉네임 지정
+### 2. 뇽 ID 카드 시스템
 
-### 2. 오늘의 뇽 알람 및 인터랙션
+내 고양이를 등록하면 고유한 뇽 ID 카드가 발급됩니다.
 
-- **랜덤 딜리버리** — 매일 무작위 시각에 고양이 사진 알림 전송
-- **5초 타임 어택** — 사진 조회 시 5초 카운트다운 시작
-- **뇽 펀치 (nyong hit)** — 5초 동안 하단 젤리 심볼을 연타하여 고양이에게 애정을 표현
-- **자동 저장** — 뇽 펀치를 1개라도 준 사진은 자동으로 '나의 뇽 갤러리'에 저장
+- **AI 고양이 판별** — OpenAI GPT-4o로 진짜 고양이인지, 정면 사진인지 검증
+- **특징 추출** — 털 색상, 무늬, 눈 색상, 귀 모양, 체형 등 자동 분석 (NyongFeatures)
+- **CLIP 임베딩** — Replicate API로 512차원 벡터 생성, 업로드 시 같은 뇽인지 매칭
+- **다중 사진** — 정면 사진 1장(필수) + 추가 사진 최대 4장
 
-### 3. 몰입형 갤러리 및 기록
+### 3. 뇽 보내기
 
-- **수직 스와이프 뷰어** — 저장된 사진을 클릭하면 전체 화면으로 확대되며, 위아래 스와이프를 통해 릴스/틱톡처럼 연속 감상 가능
-- **뇽급자 스토리 (히스토리)** — 내가 올린 사진이 전 세계 사용자들에게 도달한 횟수와 받은 총 '뇽 펀치' 수를 한눈에 확인
+등록한 뇽을 선택하고 오늘의 사진을 업로드하면 다른 집사에게 배달됩니다.
 
-### 4. 오늘의 뇽 도전 (업로드)
+- **뇽 선택** — 등록한 뇽 중 누구를 보낼지 선택
+- **AI 매칭 검증** — 업로드한 사진이 선택한 뇽과 일치하는지 확인
+- **하루 1회 제한** — 뇽 ID당 하루 한 번만 업로드 가능
+- **태그** — 사진에 태그를 달아서 보내기 (최대 20자)
+- **업로드 히스토리** — 보낸 뇽 사진 목록 + 받은 뇽펀치 수 확인
+- **자동 배정** — 방해금지 시간을 피해 랜덤 수신자에게 전달
 
-- **AI 판별 시뮬레이션** — 고양이 사진 여부를 확인하는 '오늘의 뇽 도전' 프로세스
-- **공급 로직** — 공급이 적을 땐 여러 사용자에게 배포되고, 공급이 많을 땐 소수에게 희귀하게 배달되는 유동적 배포 시스템
+### 4. 뇽 갤러리
 
-## 🛡️ 관리자 기능
+받은 뇽 사진을 3열 그리드로 모아봅니다.
 
-> 닉네임을 `admin`으로 설정하면 홈 화면에 관리자 전용 버튼이 활성화됩니다.
+- **그리드 뷰** — 3열 그리드에 뇽펀치 카운트 오버레이
+- **풀스크린 뷰어** — 사진 터치 시 전체 화면, 좌우 스와이프로 연속 감상
+- **뇽 이름 + 태그** — "모찌 #낮잠에게 32뇽펀치를 날렸어요!" 형태로 표시
+- **인앱 배너** — 새 뇽이 도착하면 갤러리 상단에 알림 배너
 
-- **일자별 데이터 조회** — 달력을 통해 특정 날짜의 배포 현황 확인
-- **스마트 정렬** — 배포 시간, 배포 수(유저 수), 받은 펀치(hit) 수 순으로 데이터 리스트 정렬
-- **실시간 모니터링** — 현재 활성화된 사진의 배달 성공 여부 관리
+### 5. 명예의 전당
 
-## 💰 수익화 모델
+이번 달 뇽펀치를 가장 많이 받은 Top 5 뇽 랭킹입니다.
 
-### 1. 잠든 뇽 깨우기 (Unlock)
+- **1등 풀너비** — 1등은 4:3 비율의 큰 카드로 표시 (왕관 배지)
+- **2~5등 2열 그리드** — 은메달, 동메달 등 랭크 배지
+- **월간 리셋** — 매월 1일 monthly_hits 자동 초기화
+- **RPC 집계** — `get_top_nyongs` 함수로 deliveries 기반 실시간 집계
 
-알림을 받고 **1시간 이상 지나서** 앱을 열면, 뇽이 잠들어 있습니다.
+### 6. 뇽 개별 갤러리
 
-- 이미지가 블러 처리되어 표시됨
-- "시간이 지나 뇽이 잠들었어요 💤" 메시지 표시
-- **광고 시청** 후 잠금 해제 → 뇽펀치 인터랙션 시작
+명예의 전당에서 뇽을 터치하면 해당 뇽의 전체 업로드 사진을 볼 수 있습니다.
+
+- **업로드별 뇽펀치 집계** — `get_nyong_uploads` RPC로 조회
+- **풀스크린 뷰어** — 개별 뇽의 사진을 크게 감상
+
+## 수익화 모델
+
+### 잠든 뇽 깨우기 (Unlock)
+
+알림을 받고 **1시간 이상 지나서** 앱을 열면 뇽이 잠들어 있습니다.
+
+- 이미지가 블러 처리되어 표시
+- **광고 시청** 후 잠금 해제 → 뇽펀치 시작
 
 ```
-[알림 수신] ─── 1시간 경과 ───> [앱 열기] ─── 광고 시청 ───> [잠금 해제]
-                                    │                           │
-                                    v                           v
-                              🔒 블러 이미지              🔓 뇽펀치 시작
+[알림 수신] ── 1시간 경과 ──> [앱 열기] ── 광고 시청 ──> [잠금 해제]
+                                  │                         │
+                                  v                         v
+                            블러 이미지                뇽펀치 시작
 ```
 
-### 2. 뇽 하나 더 받기 (Extra)
+### 뇽 하나 더 받기 (Extra)
 
-뇽펀치가 끝난 후, **광고를 보고 추가 뇽을 받을 수** 있습니다.
+뇽펀치가 끝난 후 **광고를 보고 추가 뇽**을 받을 수 있습니다.
 
-- 하루 최대 **5회**까지 추가 뇽 수신 가능
-- "광고 보고 뇽 하나 더 받기 (남은 횟수: 5/5)" 버튼 표시
+- 하루 최대 **5회**까지 추가 수신 가능
 - 광고 시청 완료 → 대기 중인 다른 뇽 자동 배정
 
-```typescript
-// profiles 테이블 컬럼
-extra_count_today: number;  // 오늘 사용한 횟수 (0-5)
-extra_count_date: string;   // 마지막 사용 날짜 (YYYY-MM-DD)
-```
+> 현재 광고는 플레이스홀더 (`lib/ads.ts`)로 구현되어 있으며, 실제 AdMob/Unity Ads SDK 연동 필요
 
-### 광고 통합
+## 관리자 기능
 
-현재는 플레이스홀더로 구현되어 있으며, 실제 광고 SDK로 교체 필요:
+> `is_admin = true`이거나 닉네임이 `admin`이면 설정 화면에서 관리자 버튼이 활성화됩니다.
 
-```typescript
-// lib/ads.ts
-export async function showRewardedAd(adType: 'unlock' | 'extra'): Promise<AdResult> {
-  // TODO: AdMob, Unity Ads 등 실제 SDK 연동
-  return { success: true, reward: true };
-}
-```
+- 일자별 배포 현황 조회 (CalendarPicker)
+- 배포 시간 / 배포 수 / 뇽펀치 수 기준 정렬
+- 고양이 사진 업로드 및 활성/비활성 토글
 
-## 🎨 디자인 시스템
+## 온보딩
 
-| 항목 | 내용 |
-|------|------|
-| 메인 컬러 | `#EC4899` (Pink 500), `#FBCFE8` (Pink 200) |
-| 심볼 | 말랑말랑한 입체감이 살아있는 '분홍 젤리' 고양이 발바닥 |
-| UI 원칙 | 라운드 코너(Rounded-3xl), 충분한 여백, 따뜻하고 부드러운 핑크톤 테마 |
+3단계 플로우로 진행됩니다.
 
-## 🛠️ 기술 스택
+1. **환영 화면** — 앱 소개 + 로그인 방식 선택
+2. **로그인/회원가입** — Google OAuth 또는 이메일/비밀번호
+3. **닉네임 설정** — 다른 집사들에게 보여질 이름
 
-| 분류 | 기술 |
-|------|------|
-| Framework | React Native 0.81 + Expo SDK 54 |
-| Navigation | Expo Router 6 |
-| Language | TypeScript 5.9 |
-| Backend | Supabase (Auth, Database, Storage) |
-| Image | expo-image-picker |
-| Secure Storage | expo-secure-store |
-| Push Notifications | expo-notifications |
-| Platform | iOS, Android, Web |
+> 테스트 모드: 이메일 `admin`, 비밀번호 `admin`으로 로그인하면 데모 모드 진입
 
-## 📊 데이터베이스 구조
-
-### 테이블
-
-| 테이블 | 설명 |
-|--------|------|
-| `profiles` | 사용자 프로필 (닉네임, 푸시 토큰, 제외 시간, 업로드/수신 날짜) |
-| `uploads` | 업로드된 고양이 사진 (이미지 URL, 업로더 ID) |
-| `deliveries` | 배송 큐 (업로드 ID, 발신자, 수신자, 상태, 뇽펀치 횟수) |
-
-### 배송 플로우
-
-```
-1. 업로더가 사진 업로드 → uploads 테이블에 저장
-2. deliveries 테이블에 pending 상태로 등록
-3. 서버 Edge Function이 매 시간 실행되어 랜덤 사용자에게 푸시 알림 발송
-4. 수신자가 푸시 알림 클릭 → 앱 열림 → 뇽펀치 화면으로 이동
-5. 5초간 뇽펀치 인터랙션 후 hits 저장 (status: received)
-6. 갤러리에 자동 추가
-```
-
-## 🔔 알림 시스템 (상세)
+## 알림 시스템
 
 ### 서버 기반 백그라운드 푸시
 
-사용자가 앱을 열지 않아도 **백그라운드에서 푸시 알림**을 받을 수 있습니다.
+Supabase Edge Function이 매 시간 cron으로 실행되어 랜덤 사용자에게 푸시 알림을 발송합니다.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Supabase Edge Function (매 시간 cron 실행)                  │
-│                                                             │
-│  1. 오늘 업로드된 이미지 풀 확인                               │
-│  2. 아직 알림 안 받은 사용자 필터링                            │
-│     - 오늘 이미 받았으면 제외                                 │
-│     - 방해금지 시간이면 제외                                  │
-│  3. 시간대별 확률로 사용자 랜덤 선택                           │
-│  4. 각 사용자에게 랜덤 이미지 배정                             │
-│  5. Expo Push API로 푸시 알림 발송                           │
-│  6. deliveries 테이블에 기록 (status: delivered)             │
-└─────────────────────────────────────────────────────────────┘
+1. 오늘 업로드된 이미지 풀 확인
+2. 아직 알림 안 받은 사용자 필터링 (오늘 수신 여부 + 방해금지 시간)
+3. 시간대별 확률로 사용자 랜덤 선택
+4. 각 사용자에게 랜덤 이미지 배정
+5. Expo Push API로 푸시 알림 발송
+6. deliveries 테이블에 기록 (status: delivered)
 ```
 
 ### 시간대별 알림 확률
 
 | 시간대 | 확률 | 설명 |
 |--------|------|------|
-| 오전 8-10시 | **20%** | 출근 시간 ⭐ |
-| 오후 5-7시 | **25%** | 퇴근 시간 ⭐ |
+| 오전 8-10시 | 20% | 출근 시간 |
+| 오후 5-7시 | 25% | 퇴근 시간 |
 | 저녁 7-10시 | 15% | 따라잡기 |
-| 밤 10시 이후 | **100%** | 남은 사용자 전부 발송 |
+| 밤 10시 이후 | 100% | 남은 사용자 전부 발송 |
 | 그 외 시간 | 5% | 랜덤 서프라이즈 |
-
-출퇴근 시간에 알림 받을 확률이 높아져서, 지하철/버스에서 뇽 선물을 받을 확률이 높습니다!
 
 ### 방해금지 시간
 
 사용자별로 설정 가능하며, 해당 시간에는 알림이 발송되지 않습니다.
 
-```typescript
-// 방해금지 시간 체크
-if (user.use_exclusion) {
-  if (isInExclusionTime(currentTime, user.exclusion_start, user.exclusion_end)) {
-    return false; // 알림 제외
-  }
-}
-```
-
-### 풀(Pool) 기반 1:N 배포
-
-- 업로더가 올린 이미지는 **여러 사용자에게 배포**될 수 있음
-- 모든 로그인 사용자는 하루에 한 번 알림을 받는 것이 보장됨 (밤 10시까지)
-- 자기가 올린 사진은 받지 않음
-
-### 알림 수신 흐름
+### 배송 플로우
 
 ```
-[백그라운드] 서버에서 푸시 발송
-     ↓
-[사용자] 푸시 알림 수신 (앱 미실행 상태)
-     ↓
-[사용자] 알림 클릭
-     ↓
-[앱] AuthContext에서 알림 데이터 추출 (deliveryId, imageUrl)
-     ↓
-[앱] NotificationBanner 표시 또는 바로 뇽펀치 화면으로 이동
-     ↓
-[앱] 5초간 뇽펀치 인터랙션
-     ↓
-[앱] deliveries 테이블 업데이트 (hits, status: received)
+1. 업로더가 뇽 선택 + 사진 업로드 → uploads 테이블에 저장
+2. 방해금지 시간 외 수신 가능한 사용자 탐색
+3. deliveries 테이블에 등록 + 푸시 알림 발송
+4. 수신자가 알림 터치 → 뇽펀치 화면으로 이동
+5. 10초간 뇽펀치 인터랙션 후 hits 저장 (status: received)
+6. 갤러리에 자동 추가 + 뇽 통계 업데이트
 ```
 
 ### Edge Function 배포
@@ -212,80 +158,124 @@ supabase db push
 
 # Edge Function 배포
 supabase functions deploy send-daily-notifications
-
-# Cron 스케줄 설정 (Supabase Dashboard에서)
-SELECT cron.schedule(
-  'send-notifications',
-  '0 * * * *',  -- 매 시간 정각
-  $$SELECT net.http_post(
-    url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/send-daily-notifications',
-    headers := '{"Authorization": "Bearer YOUR_SERVICE_ROLE_KEY"}'::jsonb
-  );$$
-);
 ```
+
+## 디자인 시스템
+
+| 항목 | 내용 |
+|------|------|
+| Primary | `#F06292` |
+| Gradient | `#FF6B9D` → `#FFB347` (핑크-오렌지) |
+| Background | `#FFF8F9` |
+| Text | `#4A3636` |
+| 폰트 | Quicksand (본문), Jua (타이틀) |
+| 심볼 | 말랑한 입체감의 분홍 젤리 고양이 발바닥 |
+| UI 원칙 | 라운드 코너, 충분한 여백, 따뜻한 핑크톤 |
+
+## 기술 스택
+
+| 분류 | 기술 |
+|------|------|
+| Framework | React Native 0.81 + Expo SDK 54 |
+| Navigation | Expo Router 6 |
+| Language | TypeScript 5.9 |
+| Backend | Supabase (Auth, Database, Storage, Edge Functions) |
+| AI | OpenAI GPT-4o (고양이 판별/특징 추출), Replicate CLIP (임베딩/매칭) |
+| Push | expo-notifications + Expo Push API |
+| Image | expo-image-picker, expo-file-system |
+| Auth | expo-auth-session (Google OAuth), expo-web-browser |
+| Storage | expo-secure-store |
+| UI | expo-linear-gradient, expo-blur, expo-haptics |
+| Fonts | @expo-google-fonts/quicksand, @expo-google-fonts/jua |
+| Platform | Android, iOS, Web |
+
+## 데이터베이스 구조
+
+### 테이블
+
+| 테이블 | 설명 |
+|--------|------|
+| `profiles` | 사용자 프로필 (닉네임, 푸시 토큰, 방해금지 시간, 광고 보상 카운트) |
+| `nyongs` | 뇽 ID 카드 (이름, 사진들, 특징 JSONB, CLIP 임베딩 VECTOR(512), 통계) |
+| `uploads` | 업로드된 사진 (이미지 URL, 업로더 ID, 뇽 ID, 태그) |
+| `deliveries` | 배송 큐 (업로드 ID, 발신자, 수신자, 상태, 뇽펀치 횟수) |
+
+### RPC 함수
+
+| 함수 | 설명 |
+|------|------|
+| `get_top_nyongs(limit_count)` | 이번 달 뇽펀치 Top N 집계 |
+| `get_nyong_uploads(target_nyong_id)` | 특정 뇽의 업로드 + 뇽펀치 합산 |
+
+### 마이그레이션
+
+| 파일 | 내용 |
+|------|------|
+| `20260127000000_init.sql` | 초기 스키마 (profiles, uploads, cats) |
+| `20260207000000_delivery_system.sql` | 배송 시스템 (deliveries) |
+| `20260207100000_extra_feature.sql` | 광고 보상 (extra_count) |
+| `20260209000000_nyong_profiles.sql` | 뇽 ID 카드 시스템 (nyongs, 임베딩, RLS) |
+| `20260211000000_hall_of_fame_rpc.sql` | 명예의 전당 RPC 함수 |
 
 ### RLS 정책
 
 | 테이블 | 정책 |
 |--------|------|
-| `profiles` | 자신의 프로필만 조회/수정 가능 |
-| `uploads` | 자신의 업로드 + 배송된 업로드 조회 가능 |
-| `deliveries` | 자신이 발신/수신한 배송 + pending 상태 배송 조회 가능 |
+| `profiles` | 자신의 프로필만 조회/수정 |
+| `nyongs` | 자신의 뇽만 생성/수정, 전체 조회 가능 |
+| `uploads` | 자신의 업로드 + 배송된 업로드 조회 |
+| `deliveries` | 자신이 발신/수신한 배송 조회 |
 
-## 📱 플랫폼별 이미지 업로드
-
-```typescript
-// 웹: blob URL → fetch로 blob 변환 후 업로드
-if (Platform.OS === 'web') {
-  const response = await fetch(selectedImage);
-  const blob = await response.blob();
-  await supabase.storage.from('uploads').upload(fileName, blob);
-}
-
-// 네이티브: FileSystem으로 base64 읽기 후 업로드
-else {
-  const base64 = await FileSystem.readAsStringAsync(selectedImage, {
-    encoding: 'base64',
-  });
-  await supabase.storage.from('uploads').upload(fileName, decode(base64));
-}
-```
-
-## 📁 프로젝트 구조
+## 프로젝트 구조
 
 ```
 nyong/
-├── app/                      # Expo Router 페이지
-│   ├── (tabs)/               # 탭 네비게이션
-│   │   ├── index.tsx         # 뇽 갤러리 (홈)
-│   │   ├── upload.tsx        # 뇽 보내기
-│   │   └── _layout.tsx       # 탭 레이아웃
-│   ├── notification.tsx      # 뇽펀치 화면
-│   ├── onboarding.tsx        # 로그인/회원가입
-│   ├── settings.tsx          # 설정
-│   └── admin.tsx             # 관리자 페이지
-├── components/               # 재사용 컴포넌트
-│   ├── CatPaw.tsx            # 발바닥 아이콘
-│   ├── NotificationBanner.tsx # 인앱 알림 배너
-│   └── TimePicker.tsx        # 시간 선택 모달
+├── app/
+│   ├── (tabs)/
+│   │   ├── _layout.tsx          # 탭 레이아웃 (갤러리, 보내기, 명예의전당)
+│   │   ├── index.tsx            # 뇽 갤러리 (홈)
+│   │   ├── upload.tsx           # 뇽 보내기
+│   │   └── hall-of-fame.tsx     # 명예의 전당
+│   ├── _layout.tsx              # 루트 레이아웃
+│   ├── notification.tsx         # 뇽펀치 화면
+│   ├── onboarding.tsx           # 로그인/회원가입
+│   ├── settings.tsx             # 설정
+│   ├── admin.tsx                # 관리자 페이지
+│   ├── nyong-register.tsx       # 뇽 ID 카드 등록
+│   └── nyong-gallery.tsx        # 뇽 개별 갤러리
+├── components/
+│   ├── CatPaw.tsx               # 발바닥 아이콘
+│   ├── GradientText.tsx         # 그라데이션 텍스트
+│   ├── NotificationBanner.tsx   # 인앱 알림 배너
+│   ├── TimePicker.tsx           # 시간 선택 모달
+│   └── CalendarPicker.tsx       # 달력 선택 (관리자)
 ├── contexts/
-│   └── AuthContext.tsx       # 인증 및 알림 상태 관리
+│   └── AuthContext.tsx           # 인증, 알림, 테스트모드 상태 관리
 ├── lib/
-│   ├── supabase.ts           # Supabase 클라이언트
-│   ├── notifications.ts      # 푸시 알림 유틸리티
-│   ├── openai.ts             # AI 고양이 판별
-│   ├── ads.ts                # 광고 서비스 (수익화)
-│   ├── theme.ts              # 테마 (색상, 라운드)
-│   └── i18n/                 # 다국어 지원 (ko, en)
+│   ├── supabase.ts              # Supabase 클라이언트
+│   ├── notifications.ts         # 푸시 알림 유틸리티
+│   ├── openai.ts                # AI 고양이 판별 + 특징 추출
+│   ├── catMatcher.ts            # CLIP 임베딩 생성 + 뇽 매칭
+│   ├── ads.ts                   # 광고 서비스 (플레이스홀더)
+│   ├── theme.ts                 # 색상, 라운드, 간격 토큰
+│   └── i18n/                    # 다국어 (ko, en)
 ├── supabase/
-│   ├── migrations/           # DB 마이그레이션
-│   └── functions/            # Edge Functions
-│       └── send-daily-notifications/  # 알림 발송 함수
-└── types/
-    └── index.ts              # TypeScript 타입 정의
+│   ├── migrations/              # DB 마이그레이션 (5개)
+│   └── functions/
+│       └── send-daily-notifications/  # 알림 발송 Edge Function
+├── types/
+│   └── index.ts                 # TypeScript 타입 정의
+└── assets/
+    ├── icon.png                 # 앱 아이콘
+    ├── adaptive-icon.png        # Android 적응형 아이콘
+    ├── screen.png               # 스플래시 화면
+    ├── nyong.png                # 뇽 마스코트 캐릭터
+    ├── cat-paw.png              # 발바닥 이미지
+    ├── crown.png                # 명예의전당 왕관
+    └── hof-cat.png              # 명예의전당 고양이
 ```
 
-## 🚀 시작하기
+## 빌드 및 배포
 
 ```bash
 # 의존성 설치
@@ -294,13 +284,19 @@ yarn install
 # 개발 서버 실행
 yarn start
 
-# iOS 실행
-yarn ios
+# 프로덕션 빌드 (Android AAB)
+eas build --platform android --profile production
 
-# Android 실행
-yarn android
+# Play Store 제출
+eas submit --platform android --latest
 ```
 
-## 📝 라이선스
+| 항목 | 값 |
+|------|-----|
+| Package | `com.nyong.app` |
+| Bundle ID | `com.nyong.app` |
+| EAS Project | `b7354b39-b61c-4470-bbc5-f5fab6a0d32b` |
+
+## 라이선스
 
 MIT License

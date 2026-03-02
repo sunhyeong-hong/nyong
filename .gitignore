@@ -47,3 +47,7 @@ yarn-error.*
 
 # Google Service Account (sensitive)
 google-service-account*.json
+
+# Mockups & marketing assets
+mockups/
+feature_graphic.png

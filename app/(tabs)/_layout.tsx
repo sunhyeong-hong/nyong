@@ -1,45 +1,16 @@
 import { Tabs, useRouter } from 'expo-router';
-import { TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, Image } from 'react-native';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../lib/theme';
 import { t } from '../../lib/i18n';
 
-function SettingsIcon({ color }: { color: string }) {
-  return (
-    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-      <Circle cx={12} cy={12} r={3} stroke={color} strokeWidth={2} />
-      <Path
-        d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
 function GalleryIcon({ color }: { color: string }) {
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-      <Rect
-        x={3}
-        y={3}
-        width={18}
-        height={18}
-        rx={2}
-        stroke={color}
-        strokeWidth={2}
-      />
+      <Rect x={3} y={3} width={18} height={18} rx={2} stroke={color} strokeWidth={2} />
       <Circle cx={8.5} cy={8.5} r={1.5} fill={color} />
-      <Path
-        d="M21 15l-5-5L5 21"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <Path d="M21 15l-5-5L5 21" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
@@ -47,28 +18,52 @@ function GalleryIcon({ color }: { color: string }) {
 function UploadIcon({ color }: { color: string }) {
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M17 8l-5-5-5 5"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M12 3v12"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <Path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M17 8l-5-5-5 5" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M12 3v12" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
+  );
+}
+
+function CrownIcon({ color }: { color: string }) {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path d="M2 17l2-11 5 5 3-7 3 7 5-5 2 11H2z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M2 17h20v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+
+function HeaderLeft() {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 16 }}>
+      <Image
+        source={require('../../assets/nyong_paw.png')}
+        style={{ width: 38, height: 38, marginRight: 0 }}
+        resizeMode="contain"
+      />
+      <Image
+        source={require('../../assets/nyongpamine.png')}
+        style={{ width: 140, height: 32 }}
+        resizeMode="contain"
+      />
+    </View>
+  );
+}
+
+function HeaderRight({ router }: { router: ReturnType<typeof useRouter> }) {
+  return (
+    <TouchableOpacity
+      style={{ marginRight: 16 }}
+      onPress={() => router.push('/settings')}
+    >
+      <Image
+        source={require('../../assets/setting.png')}
+        style={{ width: 28, height: 28 }}
+        resizeMode="contain"
+      />
+    </TouchableOpacity>
   );
 }
 
@@ -81,6 +76,7 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
+        tabBarAllowFontScaling: false,
         tabBarStyle: {
           backgroundColor: colors.white,
           borderTopWidth: 1,
@@ -101,23 +97,30 @@ export default function TabLayout() {
         name="index"
         options={{
           title: t().tabs.gallery,
-          headerTitle: t().gallery.title,
+          headerTitle: '',
           tabBarIcon: ({ color }) => <GalleryIcon color={color} />,
-          headerRight: () => (
-            <TouchableOpacity
-              onPress={() => router.push('/settings')}
-              style={{ marginRight: 16 }}
-            >
-              <SettingsIcon color={colors.textSecondary} />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <HeaderLeft />,
+          headerRight: () => <HeaderRight router={router} />,
         }}
       />
       <Tabs.Screen
         name="upload"
         options={{
           title: t().tabs.upload,
+          headerTitle: '',
           tabBarIcon: ({ color }) => <UploadIcon color={color} />,
+          headerLeft: () => <HeaderLeft />,
+          headerRight: () => <HeaderRight router={router} />,
+        }}
+      />
+      <Tabs.Screen
+        name="hall-of-fame"
+        options={{
+          title: t().hallOfFame.title,
+          headerTitle: '',
+          tabBarIcon: ({ color }) => <CrownIcon color={color} />,
+          headerLeft: () => <HeaderLeft />,
+          headerRight: () => <HeaderRight router={router} />,
         }}
       />
     </Tabs>

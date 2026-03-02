@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { Profile, Upload, ReceivedCat, Delivery } from '../types';
 import { Session } from '@supabase/supabase-js';
@@ -10,6 +11,12 @@ export interface IncomingCat {
   id: number;
   image_url: string;
   from_user?: string;
+  nyongName?: string;
+}
+
+export interface PendingNotification {
+  catId: string;
+  catImage: string;
 }
 
 interface AuthContextType {
@@ -19,13 +26,16 @@ interface AuthContextType {
   isTestMode: boolean;
   testUploads: Upload[];
   incomingCat: IncomingCat | null;
+  pendingNotification: PendingNotification | null;
   testReceivedCats: ReceivedCat[];
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   refreshProfile: () => Promise<void>;
-  setTestMode: (enabled: boolean) => void;
+  setTestMode: (enabled: boolean) => Promise<void>;
   addTestUpload: (upload: Upload) => void;
   sendTestNotification: () => void;
   clearIncomingCat: () => void;
+  clearPendingNotification: () => void;
   addReceivedCat: (catId: number, imageUrl: string, hits: number) => void;
   checkPendingDeliveries: () => Promise<void>;
 }
@@ -33,13 +43,15 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const TEST_ADMIN_PROFILE: Profile = {
-  id: 'test-admin-id',
+  id: '00000000-0000-0000-0000-000000000000',  // Valid UUID format for test mode
   nickname: '관리자',
-  use_exclusion: false,
+  use_exclusion: true,
   exclusion_start: '00:00',
-  exclusion_end: '08:00',
+  exclusion_end: '06:00',
   is_admin: true,
   created_at: new Date().toISOString(),
+  push_token: null,
+  nyong_points: 0,
 };
 
 const TEST_CAT_IMAGES = [
@@ -57,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isTestMode, setIsTestMode] = useState(false);
   const [testUploads, setTestUploads] = useState<Upload[]>([]);
   const [incomingCat, setIncomingCat] = useState<IncomingCat | null>(null);
+  const [pendingNotification, setPendingNotification] = useState<PendingNotification | null>(null);
   const [testReceivedCats, setTestReceivedCats] = useState<ReceivedCat[]>([]);
   const notificationListener = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
@@ -69,7 +82,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (error) {
-      console.log('Profile fetch error:', error);
       return null;
     }
     return data as Profile;
@@ -84,105 +96,155 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 앱 실행 시 놓친 알림 확인 (서버에서 이미 delivered 상태로 배송됨)
   const checkPendingDeliveries = async () => {
-    console.log('=== checkPendingDeliveries START ===');
-    console.log('session?.user?.id:', session?.user?.id);
-    console.log('isTestMode:', isTestMode);
-
     if (!session?.user?.id || isTestMode) return;
 
-    // 내게 배송됐지만 아직 확인하지 않은 알림 찾기
+    // 내게 배송됐지만 아직 확인하지 않은 오늘 배달만 알림 (과거 배달은 갤러리에서 잠금으로 표시)
+    const todayKst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const todayStart = new Date(`${todayKst}T00:00:00+09:00`).toISOString();
     const { data: unreadDeliveries } = await supabase
       .from('deliveries')
-      .select('*, upload:uploads(*)')
+      .select('*, upload:uploads(*, nyong:nyongs(name))')
       .eq('receiver_id', session.user.id)
       .eq('status', 'delivered')
       .is('received_at', null)
+      .gte('delivered_at', todayStart)
       .order('delivered_at', { ascending: false })
       .limit(1);
 
-    console.log('unread deliveries found:', unreadDeliveries?.length);
-
     if (!unreadDeliveries || unreadDeliveries.length === 0) {
-      console.log('No unread deliveries, returning');
       return;
     }
 
     const delivery = unreadDeliveries[0];
     const uploadData = delivery.upload;
 
-    console.log('=== Found unread delivery ===');
-    console.log('delivery.id:', delivery.id);
-    console.log('image_url:', uploadData?.image_url);
-
     // 인앱 알림 표시
     setIncomingCat({
       id: delivery.id,
       image_url: uploadData?.image_url || '',
       from_user: '익명의 집사',
+      nyongName: uploadData?.nyong?.name || undefined,
     });
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user?.id) {
-        fetchProfile(session.user.id).then(setProfile);
-        // 푸시 토큰 등록
-        registerForPushNotifications(session.user.id);
-      }
+    // 안전장치: 10초 후에도 onAuthStateChange가 안 불리면 로컬 세션 초기화
+    const loadingTimeout = setTimeout(() => {
+      setSession(null);
+      setProfile(null);
       setIsLoading(false);
-    });
+    }, 10000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        clearTimeout(loadingTimeout);
         setSession(session);
+        setIsLoading(false);
+
         if (session?.user?.id) {
-          const profileData = await fetchProfile(session.user.id);
-          setProfile(profileData);
-          // 푸시 토큰 등록
-          registerForPushNotifications(session.user.id);
+          // setTimeout(0)으로 콜백을 즉시 반환 → initializePromise 해결 후 실행
+          // onAuthStateChange 콜백 안에서 supabase 쿼리 시 getSession() → await initializePromise 데드락 발생
+          const userId = session.user.id;
+          setTimeout(async () => {
+            try {
+              let profileData = await fetchProfile(userId);
+
+              // 프로필이 없으면 기본 프로필 생성 (Google 로그인 첫 진입 등)
+              if (!profileData) {
+                await supabase.from('profiles').upsert({
+                  id: userId,
+                  nickname: '뇽집사',
+                  use_exclusion: true,
+                  exclusion_start: '00:00',
+                  exclusion_end: '06:00',
+                  is_admin: false,
+                });
+                profileData = await fetchProfile(userId);
+              }
+
+              setProfile(profileData);
+              registerForPushNotifications(userId);
+            } catch {
+              setProfile(null);
+            }
+          }, 0);
         } else {
           setProfile(null);
         }
-        setIsLoading(false);
       }
     );
 
     // 웹이 아닐 때만 알림 리스너 등록
     if (Platform.OS !== 'web') {
-      // 알림 수신 리스너 (앱이 포그라운드일 때)
-      notificationListener.current = Notifications.addNotificationReceivedListener(
-        (notification) => {
-          const data = notification.request.content.data;
-          if (data?.deliveryId && data?.imageUrl) {
-            setIncomingCat({
-              id: data.deliveryId as number,
-              image_url: data.imageUrl as string,
-              from_user: '익명의 집사',
-            });
+      try {
+        // 알림 수신 리스너 (앱이 포그라운드일 때)
+        notificationListener.current = Notifications.addNotificationReceivedListener(
+          (notification) => {
+            const data = notification.request.content.data;
+            // FCM(Android)은 data 값을 문자열로 변환 → != null 체크
+            if (data?.deliveryId != null && data?.imageUrl) {
+              setIncomingCat({
+                id: Number(data.deliveryId),
+                image_url: String(data.imageUrl),
+                from_user: '익명의 집사',
+                nyongName: data.nyongName ? String(data.nyongName) : undefined,
+              });
+            }
           }
-        }
-      );
+        );
 
-      // 알림 탭 리스너 (백그라운드에서 알림 클릭 시)
-      responseListener.current = Notifications.addNotificationResponseReceivedListener(
-        (response) => {
-          const data = response.notification.request.content.data;
-          if (data?.deliveryId && data?.imageUrl) {
-            setIncomingCat({
-              id: data.deliveryId as number,
-              image_url: data.imageUrl as string,
-              from_user: '익명의 집사',
-            });
+        // 알림 탭 리스너 (백그라운드에서 알림 클릭 시)
+        responseListener.current = Notifications.addNotificationResponseReceivedListener(
+          (response) => {
+            const data = response.notification.request.content.data;
+            // FCM(Android)은 data 값을 문자열로 변환 → != null 체크
+            if (data?.deliveryId != null && data?.imageUrl) {
+              router.push({
+                pathname: '/notification',
+                params: {
+                  catId: String(data.deliveryId),
+                  catImage: encodeURIComponent(String(data.imageUrl)),
+                },
+              });
+            }
           }
-        }
-      );
+        );
+
+        // 앱이 완전히 종료된 상태에서 알림 탭으로 실행된 경우
+        // router.push를 여기서 직접 호출하면 네비게이터가 아직 준비 안 됨
+        // → pendingNotification state에 저장, index.tsx에서 마운트 후 네비게이션
+        Notifications.getLastNotificationResponseAsync().then((response) => {
+          if (response) {
+            const data = response.notification.request.content.data;
+            // FCM(Android)은 data 값을 문자열로 변환 → != null 체크
+            if (data?.deliveryId != null && data?.imageUrl) {
+              setPendingNotification({
+                catId: String(data.deliveryId),
+                catImage: encodeURIComponent(String(data.imageUrl)),
+              });
+            }
+          }
+        });
+      } catch (error) {
+        // Expo Go에서 푸시 알림 미지원 (SDK 53+)
+      }
     }
 
+    // 앱이 백그라운드→포그라운드 복귀 시 세션 갱신
+    const appStateListener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        supabase.auth.startAutoRefresh();
+      } else {
+        supabase.auth.stopAutoRefresh();
+      }
+    });
+
     return () => {
+      clearTimeout(loadingTimeout);
       subscription.unsubscribe();
       notificationListener.current?.remove();
       responseListener.current?.remove();
+      appStateListener.remove();
     };
   }, []);
 
@@ -197,10 +259,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   };
 
-  const setTestMode = (enabled: boolean) => {
+  const deleteAccount = async () => {
+    await supabase.rpc('delete_account');
+    setSession(null);
+    setProfile(null);
+  };
+
+  const setTestMode = async (enabled: boolean) => {
     setIsTestMode(enabled);
     if (enabled) {
-      setProfile(TEST_ADMIN_PROFILE);
+      // 테스트 모드에서도 푸시 토큰 등록 시도
+      let pushToken: string | null = null;
+      try {
+        // 테스트 모드용 토큰 등록 (DB 저장 없이 토큰만 가져오기)
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        if (finalStatus === 'granted' && Platform.OS !== 'web') {
+          const Constants = require('expo-constants').default;
+          const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+          pushToken = (await Notifications.getExpoPushTokenAsync({
+            projectId: projectId ?? undefined
+          })).data;
+        }
+      } catch (error) {
+        // silent
+      }
+
+      setProfile({
+        ...TEST_ADMIN_PROFILE,
+        push_token: pushToken,
+      });
       setIsLoading(false);
     } else {
       setProfile(null);
@@ -225,10 +317,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIncomingCat(null);
   };
 
+  const clearPendingNotification = () => {
+    setPendingNotification(null);
+  };
+
   const addReceivedCat = (catId: number, imageUrl: string, hits: number) => {
     const newReceivedCat: ReceivedCat = {
       id: Date.now(),
-      user_id: 'test-admin-id',
+      user_id: '00000000-0000-0000-0000-000000000000',
       cat_id: catId,
       hits,
       received_at: new Date().toISOString(),
@@ -259,13 +355,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isTestMode,
       testUploads,
       incomingCat,
+      pendingNotification,
       testReceivedCats,
       signOut,
+      deleteAccount,
       refreshProfile,
       setTestMode,
       addTestUpload,
       sendTestNotification,
       clearIncomingCat,
+      clearPendingNotification,
       addReceivedCat,
       checkPendingDeliveries,
     }}>

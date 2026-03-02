@@ -10,17 +10,24 @@ import {
   ActivityIndicator,
   ScrollView,
   Modal,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { colors, radius } from '../lib/theme';
 import { TimePicker } from '../components/TimePicker';
-import { t } from '../lib/i18n';
+import { Toast } from '../components/Toast';
+import { t, format } from '../lib/i18n';
+import { sendPushNotification } from '../lib/notifications';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { profile, signOut, refreshProfile } = useAuth();
+  const { session, profile, signOut, deleteAccount, refreshProfile, sendTestNotification, isTestMode } = useAuth();
+  const insets = useSafeAreaInsets();
   const isAdmin = profile?.is_admin || profile?.nickname === 'admin';
 
   const [nickname, setNickname] = useState('');
@@ -30,19 +37,31 @@ export default function SettingsScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: '' });
+
 
   useEffect(() => {
     if (profile) {
       setNickname(profile.nickname || '');
-      setUseExclusion(profile.use_exclusion || false);
+      setUseExclusion(profile.use_exclusion ?? true);
       setExclusionStart(profile.exclusion_start || '00:00');
-      setExclusionEnd(profile.exclusion_end || '08:00');
+      setExclusionEnd(profile.exclusion_end || '06:00');
     }
   }, [profile]);
 
   const handleSave = async () => {
     if (!nickname.trim()) {
       Alert.alert(t().common.error, t().settings.errorEmptyNickname);
+      return;
+    }
+    if (!/^[가-힣a-zA-Z0-9\s]+$/.test(nickname.trim())) {
+      Alert.alert(t().common.error, t().onboarding.errorInvalidNickname);
+      return;
+    }
+
+    const userId = profile?.id || session?.user?.id;
+    if (!userId) {
+      Alert.alert(t().common.error, t().settings.errorSessionExpired);
       return;
     }
 
@@ -56,13 +75,12 @@ export default function SettingsScreen() {
           exclusion_start: exclusionStart,
           exclusion_end: exclusionEnd,
         })
-        .eq('id', profile?.id);
+        .eq('id', userId);
 
       if (error) throw error;
 
       await refreshProfile();
-      Alert.alert(t().common.success, t().settings.saveSuccess);
-      router.back();
+      setToast({ visible: true, message: t().settings.saveSuccess });
     } catch (error: any) {
       Alert.alert(t().common.error, error.message || t().settings.errorSaveFailed);
     } finally {
@@ -88,6 +106,46 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      t().settings.deleteAccountTitle,
+      t().settings.deleteAccountMessage,
+      [
+        { text: t().common.cancel, style: 'cancel' },
+        {
+          text: t().settings.deleteAccountConfirm,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccount();
+              router.replace('/onboarding');
+            } catch (error: any) {
+              Alert.alert(t().common.error, error.message || t().settings.deleteAccountError);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // 테스트: 뇽펀치 화면으로 바로 이동
+  const handleTestPush = () => {
+    // test mode: mock delivery 첫번째 항목 사용 (매옹이 #코롬하다냥)
+    const mockDelivery = isTestMode ? require('../lib/mockData').MOCK_DELIVERIES[0] : null;
+    const testImage = mockDelivery?.upload?.image_url || 'https://cdn2.thecatapi.com/images/0XYvRd7oD.jpg';
+    const testCatId = mockDelivery?.id?.toString() || '0';
+    router.dismiss(); // 설정 모달 닫기
+    setTimeout(() => {
+      router.push({
+        pathname: '/notification',
+        params: {
+          catId: testCatId,
+          catImage: encodeURIComponent(testImage),
+        },
+      });
+    }, 300);
+  };
+
   const parseTime = (timeStr: string) => {
     const parts = timeStr.split(':');
     return {
@@ -100,7 +158,8 @@ export default function SettingsScreen() {
   const endTime = parseTime(exclusionEnd);
 
   return (
-    <ScrollView style={styles.container}>
+    <>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t().settings.profileSection}</Text>
         <View style={styles.inputGroup}>
@@ -128,7 +187,7 @@ export default function SettingsScreen() {
             value={useExclusion}
             onValueChange={setUseExclusion}
             trackColor={{ false: colors.switchTrackOff, true: colors.primaryLight }}
-            thumbColor={useExclusion ? colors.primary : '#f4f3f4'}
+            thumbColor={useExclusion ? colors.primary : colors.switchThumbOff}
           />
         </View>
 
@@ -156,32 +215,57 @@ export default function SettingsScreen() {
         )}
       </View>
 
+      {/* 뇽 포인트 */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t().points.sectionTitle}</Text>
+        <TouchableOpacity style={styles.pointsRow} onPress={() => router.push('/upload-calendar')} activeOpacity={0.7}>
+          <Text style={styles.pointsLabel}>{t().points.balance}</Text>
+          <View style={styles.pointsRight}>
+            <Text style={styles.pointsValue}>
+              {format(t().points.currentPoints, { count: profile?.nyong_points ?? 0 })}
+            </Text>
+            <Text style={styles.pointsArrow}>{'›'}</Text>
+          </View>
+        </TouchableOpacity>
+        <Text style={styles.pointsDescription}>{t().points.description}</Text>
+      </View>
+
       <TouchableOpacity
         style={styles.saveButton}
         onPress={handleSave}
         disabled={isSaving}
       >
         {isSaving ? (
-          <ActivityIndicator color={colors.white} />
+          <ActivityIndicator color={colors.primary} />
         ) : (
           <Text style={styles.saveButtonText}>{t().common.save}</Text>
         )}
       </TouchableOpacity>
 
       {isAdmin && (
-        <TouchableOpacity
-          style={styles.adminButton}
-          onPress={() => router.push('/admin')}
-        >
-          <Text style={styles.adminButtonText}>{t().settings.adminPage}</Text>
-        </TouchableOpacity>
+        <View style={styles.adminRow}>
+          <TouchableOpacity
+            style={styles.adminButton}
+            onPress={() => router.push('/admin')}
+          >
+            <Text style={styles.adminButtonText}>{t().settings.adminPage}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.testPushButton}
+            onPress={handleTestPush}
+          >
+            <Text style={styles.testPushButtonText}>테스트 푸시</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
-      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-        <Text style={styles.signOutButtonText}>{t().settings.logout}</Text>
-      </TouchableOpacity>
-
       <View style={styles.footer}>
+        <TouchableOpacity onPress={handleSignOut}>
+          <Text style={styles.signOutText}>{t().settings.logout}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleDeleteAccount}>
+          <Text style={styles.deleteAccountText}>{t().settings.deleteAccount}</Text>
+        </TouchableOpacity>
         <Text style={styles.footerText}>{t().settings.version}</Text>
       </View>
 
@@ -191,11 +275,8 @@ export default function SettingsScreen() {
             <Text style={styles.pickerTitle}>{t().settings.startTime}</Text>
             <TimePicker
               initialHour={startTime.hour}
-              initialMinute={startTime.minute}
-              onTimeChange={(hour, minute) => {
-                setExclusionStart(
-                  `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-                );
+              onTimeChange={(hour) => {
+                setExclusionStart(`${hour.toString().padStart(2, '0')}:00`);
               }}
             />
             <TouchableOpacity
@@ -214,11 +295,8 @@ export default function SettingsScreen() {
             <Text style={styles.pickerTitle}>{t().settings.endTime}</Text>
             <TimePicker
               initialHour={endTime.hour}
-              initialMinute={endTime.minute}
-              onTimeChange={(hour, minute) => {
-                setExclusionEnd(
-                  `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-                );
+              onTimeChange={(hour) => {
+                setExclusionEnd(`${hour.toString().padStart(2, '0')}:00`);
               }}
             />
             <TouchableOpacity
@@ -231,6 +309,12 @@ export default function SettingsScreen() {
         </View>
       </Modal>
     </ScrollView>
+    <Toast
+      visible={toast.visible}
+      message={toast.message}
+      onHide={() => setToast({ visible: false, message: '' })}
+    />
+    </>
   );
 }
 
@@ -265,8 +349,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.xl,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     fontSize: 16,
   },
   switchRow: {
@@ -306,47 +390,63 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   saveButton: {
-    backgroundColor: colors.primary,
     marginHorizontal: 20,
-    marginTop: 30,
-    paddingVertical: 16,
+    marginTop: 24,
+    paddingVertical: 14,
     borderRadius: radius.xl,
     alignItems: 'center',
+    backgroundColor: colors.primary,
   },
   saveButtonText: {
     color: colors.white,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
-  adminButton: {
-    backgroundColor: colors.adminButton,
+  adminRow: {
+    flexDirection: 'row',
     marginHorizontal: 20,
-    marginTop: 16,
-    paddingVertical: 16,
-    borderRadius: radius.xl,
+    marginTop: 12,
+    gap: 8,
+  },
+  adminButton: {
+    flex: 1,
+    backgroundColor: colors.adminButton,
+    paddingVertical: 10,
+    borderRadius: radius.lg,
     alignItems: 'center',
   },
   adminButtonText: {
     color: colors.white,
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
   },
-  signOutButton: {
-    marginHorizontal: 20,
-    marginTop: 16,
-    paddingVertical: 16,
-    borderRadius: radius.xl,
+  testPushButton: {
+    flex: 1,
+    backgroundColor: colors.testButton,
+    paddingVertical: 10,
+    borderRadius: radius.lg,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.switchTrackOff,
   },
-  signOutButtonText: {
-    color: colors.textTertiary,
-    fontSize: 16,
+  testPushButtonText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '600',
   },
   footer: {
     alignItems: 'center',
-    marginVertical: 30,
+    marginTop: 32,
+    marginBottom: 30,
+    gap: 12,
+  },
+  signOutText: {
+    fontSize: 13,
+    color: colors.textTertiary,
+    textDecorationLine: 'underline',
+  },
+  deleteAccountText: {
+    fontSize: 12,
+    color: colors.textDisabled,
+    textDecorationLine: 'underline',
   },
   footerText: {
     fontSize: 12,
@@ -354,7 +454,7 @@ const styles = StyleSheet.create({
   },
   pickerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: colors.overlayDim,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -362,7 +462,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: radius.xl,
     padding: 24,
-    width: 300,
+    width: Math.min(300, screenWidth - 60),
     alignItems: 'center',
   },
   pickerTitle: {
@@ -382,5 +482,36 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     fontWeight: '600',
+  },
+  // 뇽 포인트
+  pointsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  pointsLabel: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  pointsRight: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+  },
+  pointsValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  pointsArrow: {
+    fontSize: 16,
+    color: colors.textTertiary,
+  },
+  pointsDescription: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    marginBottom: 14,
+    lineHeight: 18,
   },
 });

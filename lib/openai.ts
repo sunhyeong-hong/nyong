@@ -2,7 +2,9 @@ const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
 
 export interface CatVerificationResult {
   isCat: boolean;
+  isFrontFacing: boolean;
   confidence: number;
+  isSafe: boolean;
 }
 
 export async function verifyCatImage(imageUri: string): Promise<CatVerificationResult> {
@@ -29,7 +31,11 @@ export async function verifyCatImage(imageUri: string): Promise<CatVerificationR
           content: [
             {
               type: 'text',
-              text: `Is this a photo of a REAL cat (not illustration/cartoon/character) where the cat is the main subject? Reply JSON only: {"isCat": boolean, "confidence": 0-100}`,
+              text: `Check this photo:
+1. Is this a REAL cat (not illustration/cartoon)?
+2. Is the cat's face at least partially visible? Be lenient - accept any angle where the face can be generally seen. Only reject if completely facing away or face fully hidden.
+3. Is this photo safe for children? Mark isSafe=false if it contains ANY: nudity, sexual content, violence, gore, blood, drugs, weapons, hate symbols, disturbing/shocking imagery, or any content inappropriate for ages 12+.
+Reply JSON only: {"isCat": boolean, "isFrontFacing": boolean, "confidence": 0-100, "isSafe": boolean}`,
             },
             {
               type: 'image_url',
@@ -40,7 +46,7 @@ export async function verifyCatImage(imageUri: string): Promise<CatVerificationR
           ],
         },
       ],
-      max_tokens: 50,
+      max_tokens: 60,
     }),
   });
 
@@ -57,17 +63,17 @@ export async function verifyCatImage(imageUri: string): Promise<CatVerificationR
   }
 
   try {
-    // Parse JSON from response (handle markdown code blocks if present)
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('Invalid response format');
     }
     return JSON.parse(jsonMatch[0]);
   } catch {
-    // Fallback if parsing fails
     return {
       isCat: false,
+      isFrontFacing: false,
       confidence: 0,
+      isSafe: false,
     };
   }
 }

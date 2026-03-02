@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,35 +9,71 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
 import { supabase } from '../lib/supabase';
-import { CatPaw } from '../components/CatPaw';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, radius } from '../lib/theme';
-import { t } from '../lib/i18n';
+import { t, format } from '../lib/i18n';
+
+const RESEND_COOLDOWN = 60;
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isValidPassword(pw: string): boolean {
+  if (pw.length < 5 || pw.length > 20) return false;
+  let types = 0;
+  if (/[a-zA-Z]/.test(pw)) types++;
+  if (/[0-9]/.test(pw)) types++;
+  if (/[^a-zA-Z0-9]/.test(pw)) types++;
+  return types >= 2;
+}
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { setTestMode } = useAuth();
-  const [step, setStep] = useState<'welcome' | 'signup' | 'nickname'>('welcome');
+  const { setTestMode, refreshProfile } = useAuth();
+  const [step, setStep] = useState<'welcome' | 'signup' | 'verify'>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [nickname, setNickname] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // 쿨다운 타이머
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      cooldownRef.current = setInterval(() => {
+        setResendCooldown((prev) => {
+          if (prev <= 1) {
+            if (cooldownRef.current) clearInterval(cooldownRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (cooldownRef.current) clearInterval(cooldownRef.current);
+    };
+  }, [resendCooldown > 0]);
+
+  const openPrivacyPolicy = () => {
+    WebBrowser.openBrowserAsync('https://github.com/sunhyeong-hong/nyong/blob/main/privacy-policy.md');
+  };
 
   const handleGoogleSignIn = async () => {
+    if (!agreedToPrivacy) {
+      Alert.alert(t().common.error, t().onboarding.errorPrivacyRequired);
+      return;
+    }
     setIsLoading(true);
     try {
-      // Expo Go에서는 native redirect 사용
-      const redirectUrl = makeRedirectUri({
-        native: 'nyong://',
-      });
-
-      console.log('Redirect URL:', redirectUrl);
+      const redirectUrl = 'nyongpamin://google-auth';
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -56,7 +92,6 @@ export default function OnboardingScreen() {
         );
 
         if (result.type === 'success' && result.url) {
-          // URL에서 access_token과 refresh_token 추출
           const url = new URL(result.url);
           const params = new URLSearchParams(url.hash.substring(1));
           const accessToken = params.get('access_token');
@@ -86,6 +121,14 @@ export default function OnboardingScreen() {
       Alert.alert(t().common.error, t().onboarding.errorEmptyFields);
       return;
     }
+    if (!EMAIL_REGEX.test(email)) {
+      Alert.alert(t().common.error, t().onboarding.errorInvalidEmail);
+      return;
+    }
+    if (!isValidPassword(password)) {
+      Alert.alert(t().common.error, t().onboarding.errorInvalidPassword);
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -96,12 +139,74 @@ export default function OnboardingScreen() {
 
       if (error) throw error;
 
+      // 이미 가입된 이메일인 경우 identities가 빈 배열
+      if (data.user?.identities?.length === 0) {
+        Alert.alert(t().common.error, t().onboarding.errorAlreadyRegistered);
+        return;
+      }
+
       if (data.user) {
-        setPendingUserId(data.user.id);
-        setStep('nickname');
+        setOtpCode('');
+        setResendCooldown(RESEND_COOLDOWN);
+        setStep('verify');
       }
     } catch (error: any) {
       Alert.alert(t().common.error, error.message || t().onboarding.errorSignup);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpCode || otpCode.length !== 6) {
+      Alert.alert(t().common.error, t().onboarding.errorInvalidOtp);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: otpCode,
+        type: 'signup',
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // 기본 프로필 생성 후 설정 화면으로 이동
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          nickname: '뇽집사',
+          use_exclusion: true,
+          exclusion_start: '00:00',
+          exclusion_end: '06:00',
+          is_admin: false,
+        });
+        await refreshProfile();
+        router.replace('/nickname-setup');
+      }
+    } catch (error: any) {
+      Alert.alert(t().common.error, error.message || t().onboarding.errorInvalidOtp);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) return;
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      });
+
+      if (error) throw error;
+      setResendCooldown(RESEND_COOLDOWN);
+    } catch (error: any) {
+      Alert.alert(t().common.error, error.message || t().onboarding.errorResendFailed);
     } finally {
       setIsLoading(false);
     }
@@ -113,8 +218,11 @@ export default function OnboardingScreen() {
       return;
     }
 
+    // admin 테스트 모드는 검증 스킵
     if (email === 'admin' && password === 'admin') {
-      setTestMode(true);
+      setIsLoading(true);
+      await setTestMode(true);
+      setIsLoading(false);
       router.replace('/(tabs)');
       return;
     }
@@ -135,65 +243,43 @@ export default function OnboardingScreen() {
     }
   };
 
-  const handleSetNickname = async () => {
-    if (!nickname.trim()) {
-      Alert.alert(t().common.error, t().onboarding.errorEmptyNickname);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // 세션이 있으면 세션의 user 사용, 없으면 pendingUserId 사용
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id || pendingUserId;
-
-      if (!userId) throw new Error(t().onboarding.errorUserNotFound);
-
-      const { error } = await supabase.from('profiles').upsert({
-        id: userId,
-        nickname: nickname.trim(),
-        use_exclusion: false,
-        exclusion_start: '00:00',
-        exclusion_end: '08:00',
-        is_admin: false,
-      });
-
-      if (error) throw error;
-
-      // 이메일 확인이 필요한 경우 안내
-      if (!user) {
-        Alert.alert(
-          t().onboarding.signupSuccessTitle,
-          t().onboarding.signupSuccessMessage,
-          [{ text: t().common.confirm, onPress: () => setStep('signup') }]
-        );
-      } else {
-        router.replace('/(tabs)');
-      }
-    } catch (error: any) {
-      Alert.alert(t().common.error, error.message || t().onboarding.errorProfileSetup);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   if (step === 'welcome') {
     return (
       <View style={styles.container}>
         <View style={styles.content}>
-          <CatPaw width={120} height={120} />
-          <Text style={styles.title}>{t().onboarding.appName}</Text>
-          <Text style={styles.subtitle}>{t().onboarding.appTagline}</Text>
+          <Image
+            source={require('../assets/nyong_text.png')}
+            style={{ width: 220, height: 220 }}
+            contentFit="contain"
+          />
+          {t().onboarding.appTagline ? (
+            <Text style={styles.subtitle}>{t().onboarding.appTagline}</Text>
+          ) : null}
           <Text style={styles.description}>
             {t().onboarding.appDescription}
           </Text>
         </View>
 
         <View style={styles.buttonContainer}>
+          {/* 개인정보처리방침 동의 */}
+          <View style={styles.privacyRow}>
+            <TouchableOpacity
+              style={[styles.checkbox, agreedToPrivacy && styles.checkboxChecked]}
+              onPress={() => setAgreedToPrivacy(!agreedToPrivacy)}
+            >
+              {agreedToPrivacy && <Text style={styles.checkmark}>✓</Text>}
+            </TouchableOpacity>
+            <Text style={styles.privacyText}>{t().onboarding.privacyAgree}</Text>
+            <TouchableOpacity onPress={openPrivacyPolicy}>
+              <Text style={styles.privacyLink}>{t().onboarding.privacyLink}</Text>
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity
-            style={styles.googleButton}
+            style={[styles.googleButton, !agreedToPrivacy && styles.buttonDisabled]}
             onPress={handleGoogleSignIn}
-            disabled={isLoading}
+            disabled={isLoading || !agreedToPrivacy}
           >
             {isLoading ? (
               <ActivityIndicator color={colors.white} />
@@ -203,7 +289,13 @@ export default function OnboardingScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => setStep('signup')}
+            onPress={() => {
+              if (!agreedToPrivacy) {
+                Alert.alert(t().common.error, t().onboarding.errorPrivacyRequired);
+                return;
+              }
+              setStep('signup');
+            }}
           >
             <Text style={styles.emailLoginLink}>{t().onboarding.emailLogin}</Text>
           </TouchableOpacity>
@@ -212,42 +304,69 @@ export default function OnboardingScreen() {
     );
   }
 
-  if (step === 'nickname') {
+  if (step === 'verify') {
     return (
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-        <View style={styles.content}>
-          <CatPaw width={80} height={80} />
-          <Text style={styles.stepTitle}>{t().onboarding.nicknameTitle}</Text>
-          <Text style={styles.stepDescription}>
-            {t().onboarding.nicknameDescription}
-          </Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
+          <View style={styles.content}>
+            <Image
+              source={require('../assets/nyong_fish.png')}
+              style={styles.stepImage}
+              contentFit="contain"
+            />
+            <Text style={styles.stepTitle}>{t().onboarding.verifyTitle}</Text>
+            <Text style={styles.stepDescription}>
+              {format(t().onboarding.verifyDescription, { email })}
+            </Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder={t().onboarding.nicknamePlaceholder}
-            value={nickname}
-            onChangeText={setNickname}
-            autoFocus
-            maxLength={20}
-          />
-        </View>
+            <TextInput
+              style={[styles.input, styles.otpInput]}
+              placeholder={t().onboarding.verifyPlaceholder}
+              value={otpCode}
+              onChangeText={setOtpCode}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoFocus
+              textAlign="center"
+            />
+          </View>
 
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleSetNickname}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <Text style={styles.primaryButtonText}>{t().common.complete}</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.primaryButton, otpCode.length !== 6 && styles.buttonDisabled]}
+              onPress={handleVerifyOtp}
+              disabled={isLoading || otpCode.length !== 6}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <Text style={styles.primaryButtonText}>{t().onboarding.verifyButton}</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleResendOtp}
+              disabled={resendCooldown > 0 || isLoading}
+            >
+              <Text style={[styles.resendText, resendCooldown > 0 && styles.resendTextDisabled]}>
+                {resendCooldown > 0
+                  ? format(t().onboarding.resendCooldown, { seconds: resendCooldown })
+                  : t().onboarding.resendButton}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => { setStep('signup'); setOtpCode(''); }}>
+              <Text style={styles.backText}>{t().common.back}</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     );
   }
@@ -257,53 +376,63 @@ export default function OnboardingScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <View style={styles.content}>
-        <CatPaw width={80} height={80} />
-        <Text style={styles.stepTitle}>{t().onboarding.loginTitle}</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
+      >
+        <View style={styles.content}>
+          <Image
+            source={require('../assets/nyong_fish.png')}
+            style={styles.stepImage}
+            contentFit="contain"
+          />
+          <Text style={styles.stepTitle}>{t().onboarding.loginTitle}</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder={t().onboarding.emailPlaceholder}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
+          <TextInput
+            style={styles.input}
+            placeholder={t().onboarding.emailPlaceholder}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
 
-        <TextInput
-          style={styles.input}
-          placeholder={t().onboarding.passwordPlaceholder}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-      </View>
+          <TextInput
+            style={styles.input}
+            placeholder={t().onboarding.passwordPlaceholder}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+        </View>
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={handleSignIn}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={colors.white} />
-          ) : (
-            <Text style={styles.primaryButtonText}>{t().onboarding.loginButton}</Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={handleSignIn}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Text style={styles.primaryButtonText}>{t().onboarding.loginButton}</Text>
+            )}
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={handleSignUp}
-          disabled={isLoading}
-        >
-          <Text style={styles.secondaryButtonText}>{t().onboarding.signupButton}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleSignUp}
+            disabled={isLoading}
+          >
+            <Text style={styles.secondaryButtonText}>{t().onboarding.signupButton}</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => setStep('welcome')}>
-          <Text style={styles.backText}>{t().common.back}</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity onPress={() => setStep('welcome')}>
+            <Text style={styles.backText}>{t().common.back}</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -313,17 +442,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
-  },
-  title: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: colors.primary,
-    marginTop: 20,
   },
   subtitle: {
     fontSize: 18,
@@ -331,11 +457,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   description: {
-    fontSize: 16,
-    color: colors.textTertiary,
+    fontSize: 18,
+    color: colors.primary,
+    fontWeight: '600',
     textAlign: 'center',
     marginTop: 20,
-    lineHeight: 24,
+    lineHeight: 28,
+  },
+  stepImage: {
+    width: 120,
+    height: 120,
   },
   stepTitle: {
     fontSize: 24,
@@ -349,6 +480,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 8,
     marginBottom: 30,
+    textAlign: 'center',
   },
   input: {
     width: '100%',
@@ -360,6 +492,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     marginBottom: 12,
+  },
+  otpInput: {
+    fontSize: 28,
+    letterSpacing: 8,
+    fontWeight: '700',
   },
   buttonContainer: {
     paddingHorizontal: 40,
@@ -395,6 +532,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
   secondaryButton: {
     backgroundColor: colors.white,
     paddingVertical: 16,
@@ -408,10 +548,54 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
+  resendText: {
+    color: colors.primary,
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  resendTextDisabled: {
+    color: colors.textTertiary,
+  },
   backText: {
     color: colors.textTertiary,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
+  },
+  privacyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  checkmark: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  privacyText: {
+    fontSize: 13,
+    color: colors.text,
+    flex: 1,
+  },
+  privacyLink: {
+    fontSize: 12,
+    color: colors.primary,
+    textDecorationLine: 'underline',
   },
 });

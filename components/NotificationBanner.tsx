@@ -5,15 +5,17 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius } from '../lib/theme';
-import { t } from '../lib/i18n';
+import { t, format } from '../lib/i18n';
 
 interface NotificationBannerProps {
   visible: boolean;
   catImage: string;
+  nickname?: string;
+  nyongName?: string;
   onPress: () => void;
   onDismiss: () => void;
 }
@@ -21,6 +23,8 @@ interface NotificationBannerProps {
 export function NotificationBanner({
   visible,
   catImage,
+  nickname,
+  nyongName,
   onPress,
   onDismiss,
 }: NotificationBannerProps) {
@@ -69,11 +73,19 @@ export function NotificationBanner({
       >
         <Image source={{ uri: catImage }} style={styles.thumbnail} />
         <View style={styles.content}>
-          <Text style={styles.title}>{t().banner.title}</Text>
-          <Text style={styles.subtitle}>{t().banner.subtitle}</Text>
+          <Text style={styles.title} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+            {nickname && nyongName
+              ? format(t().push.title, { nickname, nyongName })
+              : t().banner.title}
+          </Text>
+          <Text style={styles.subtitle} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+            {nyongName
+              ? format(t().push.body, { nyongName })
+              : t().banner.subtitle}
+          </Text>
         </View>
         <TouchableOpacity style={styles.closeButton} onPress={onDismiss}>
-          <Text style={styles.closeText}>×</Text>
+          <Text style={styles.closeText} maxFontSizeMultiplier={1.0}>×</Text>
         </TouchableOpacity>
       </TouchableOpacity>
     </Animated.View>
@@ -119,21 +131,21 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: colors.whiteSubtle,
     marginTop: 2,
   },
   closeButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.whiteOverlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeText: {
     fontSize: 20,
     color: colors.white,
-    fontWeight: 'bold',
-    marginTop: -2,
+    fontWeight: '500',
+    marginTop: -1,
   },
 });

@@ -1,145 +1,69 @@
-import React, { useRef, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, ViewToken } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { colors, radius } from '../lib/theme';
-
-const ITEM_HEIGHT = 44;
-const VISIBLE_ITEMS = 5;
-const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
 
 interface TimePickerProps {
   initialHour: number;
-  initialMinute: number;
+  initialMinute?: number;
   onTimeChange: (hour: number, minute: number) => void;
 }
 
-const hours = Array.from({ length: 24 }, (_, i) => i);
-const minutes = Array.from({ length: 60 }, (_, i) => i);
+export function TimePicker({ initialHour, onTimeChange }: TimePickerProps) {
+  const [hour, setHour] = useState(initialHour);
+  const [hourText, setHourText] = useState(initialHour.toString().padStart(2, '0'));
 
-export function TimePicker({ initialHour, initialMinute, onTimeChange }: TimePickerProps) {
-  const hourRef = useRef<FlatList>(null);
-  const minuteRef = useRef<FlatList>(null);
-  const selectedHour = useRef(initialHour);
-  const selectedMinute = useRef(initialMinute);
-  const isInitialized = useRef(false);
+  const pad = (n: number) => n.toString().padStart(2, '0');
 
-  useEffect(() => {
-    // 최초 마운트 시에만 스크롤 위치 설정
-    if (isInitialized.current) return;
-    isInitialized.current = true;
+  const updateHour = (delta: number) => {
+    const next = (hour + delta + 24) % 24;
+    setHour(next);
+    setHourText(pad(next));
+    onTimeChange(next, 0);
+  };
 
-    setTimeout(() => {
-      hourRef.current?.scrollToOffset({
-        offset: initialHour * ITEM_HEIGHT,
-        animated: false,
-      });
-      minuteRef.current?.scrollToOffset({
-        offset: initialMinute * ITEM_HEIGHT,
-        animated: false,
-      });
-    }, 100);
-  }, []);
+  const handleHourChange = (text: string) => {
+    const digits = text.replace(/[^0-9]/g, '');
+    setHourText(digits);
+    const val = parseInt(digits, 10);
+    if (!isNaN(val) && val >= 0 && val <= 23) {
+      setHour(val);
+      onTimeChange(val, 0);
+    }
+  };
 
-  const onHourViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0) {
-        const middleIndex = Math.floor(viewableItems.length / 2);
-        const item = viewableItems[middleIndex];
-        if (item?.item !== undefined) {
-          selectedHour.current = item.item;
-          onTimeChange(selectedHour.current, selectedMinute.current);
-        }
-      }
-    },
-    [onTimeChange]
-  );
-
-  const onMinuteViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0) {
-        const middleIndex = Math.floor(viewableItems.length / 2);
-        const item = viewableItems[middleIndex];
-        if (item?.item !== undefined) {
-          selectedMinute.current = item.item;
-          onTimeChange(selectedHour.current, selectedMinute.current);
-        }
-      }
-    },
-    [onTimeChange]
-  );
-
-  const renderHourItem = ({ item }: { item: number }) => (
-    <View style={styles.item}>
-      <Text style={styles.itemText}>
-        {item.toString().padStart(2, '0')}
-      </Text>
-    </View>
-  );
-
-  const renderMinuteItem = ({ item }: { item: number }) => (
-    <View style={styles.item}>
-      <Text style={styles.itemText}>
-        {item.toString().padStart(2, '0')}
-      </Text>
-    </View>
-  );
+  const handleHourBlur = () => {
+    const val = parseInt(hourText, 10);
+    if (isNaN(val) || val < 0 || val > 23) {
+      setHourText(pad(hour));
+    } else {
+      const clamped = Math.max(0, Math.min(23, val));
+      setHour(clamped);
+      setHourText(pad(clamped));
+      onTimeChange(clamped, 0);
+    }
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.column}>
-        <FlatList
-          ref={hourRef}
-          data={hours}
-          renderItem={renderHourItem}
-          keyExtractor={(item) => `h-${item}`}
-          showsVerticalScrollIndicator={false}
-          snapToInterval={ITEM_HEIGHT}
-          decelerationRate="fast"
-          style={styles.list}
-          contentContainerStyle={{
-            paddingVertical: ITEM_HEIGHT * 2,
-          }}
-          getItemLayout={(_, index) => ({
-            length: ITEM_HEIGHT,
-            offset: ITEM_HEIGHT * index,
-            index,
-          })}
-          onViewableItemsChanged={onHourViewableItemsChanged}
-          viewabilityConfig={{
-            itemVisiblePercentThreshold: 50,
-          }}
+        <TouchableOpacity style={styles.arrowButton} onPress={() => updateHour(1)}>
+          <Text style={styles.arrow}>▲</Text>
+        </TouchableOpacity>
+        <TextInput
+          style={styles.valueInput}
+          value={hourText}
+          onChangeText={handleHourChange}
+          onBlur={handleHourBlur}
+          keyboardType="numeric"
+          maxLength={2}
+          textAlign="center"
+          selectTextOnFocus
         />
+        <TouchableOpacity style={styles.arrowButton} onPress={() => updateHour(-1)}>
+          <Text style={styles.arrow}>▼</Text>
+        </TouchableOpacity>
         <Text style={styles.unitLabel}>시</Text>
       </View>
-
-      <Text style={styles.separator}>:</Text>
-
-      <View style={styles.column}>
-        <FlatList
-          ref={minuteRef}
-          data={minutes}
-          renderItem={renderMinuteItem}
-          keyExtractor={(item) => `m-${item}`}
-          showsVerticalScrollIndicator={false}
-          snapToInterval={ITEM_HEIGHT}
-          decelerationRate="fast"
-          style={styles.list}
-          contentContainerStyle={{
-            paddingVertical: ITEM_HEIGHT * 2,
-          }}
-          getItemLayout={(_, index) => ({
-            length: ITEM_HEIGHT,
-            offset: ITEM_HEIGHT * index,
-            index,
-          })}
-          onViewableItemsChanged={onMinuteViewableItemsChanged}
-          viewabilityConfig={{
-            itemVisiblePercentThreshold: 50,
-          }}
-        />
-        <Text style={styles.unitLabel}>분</Text>
-      </View>
-
-      <View style={styles.highlight} pointerEvents="none" />
     </View>
   );
 }
@@ -148,48 +72,37 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: PICKER_HEIGHT,
-    overflow: 'hidden',
+    gap: 12,
   },
   column: {
     alignItems: 'center',
-    width: 80,
   },
-  list: {
-    height: PICKER_HEIGHT,
-    width: 80,
-  },
-  item: {
-    height: ITEM_HEIGHT,
+  arrowButton: {
+    width: 60,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  itemText: {
-    fontSize: 22,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  separator: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  arrow: {
+    fontSize: 18,
     color: colors.primary,
-    marginHorizontal: 4,
+  },
+  valueInput: {
+    width: 72,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.primaryHighlight,
+    borderRadius: radius.lg,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
   },
   unitLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    marginTop: 4,
-  },
-  highlight: {
-    position: 'absolute',
-    top: ITEM_HEIGHT * 2,
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT,
-    borderTopWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(236, 72, 153, 0.08)',
-    borderRadius: radius.sm,
+    marginTop: 2,
   },
 });

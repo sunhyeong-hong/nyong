@@ -4,54 +4,60 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => {
+      return {
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      };
+    },
+  });
+} catch (error) {
+  // Expo Go에서 알림 핸들러 미지원
+}
 
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
   // 웹에서는 푸시 알림 건너뛰기
   if (Platform.OS === 'web') {
-    console.log('Push notifications not supported on web');
     return null;
   }
 
   if (!Device.isDevice) {
-    console.log('Push notifications require a physical device');
     return null;
-  }
-
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== 'granted') {
-    console.log('Push notification permission denied');
-    return null;
-  }
-
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-    });
   }
 
   try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+      return null;
+    }
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+      });
+    }
+
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+
     const token = (await Notifications.getExpoPushTokenAsync({
       projectId: projectId ?? undefined
     })).data;
+
+    if (!token) return null;
 
     // Save token to Supabase
     await supabase
@@ -60,8 +66,8 @@ export async function registerForPushNotifications(userId: string): Promise<stri
       .eq('id', userId);
 
     return token;
-  } catch (error) {
-    console.log('Failed to get push token:', error);
+  } catch (error: any) {
+    // Expo Go에서 푸시 알림 미지원 (SDK 53+)
     return null;
   }
 }
