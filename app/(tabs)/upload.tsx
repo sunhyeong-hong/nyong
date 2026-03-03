@@ -89,6 +89,29 @@ export default function UploadScreen() {
     return () => handler.remove();
   }, [selectedIndex]);
 
+  // Android 뒤로가기: 사진 미리보기 → 사진 선택으로 되돌아가기
+  useEffect(() => {
+    if (!selectedImage) return;
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      setSelectedImage(null);
+      setTag('');
+      setMatchResult(null);
+      setErrorMessage(null);
+      return true;
+    });
+    return () => handler.remove();
+  }, [selectedImage]);
+
+  // Android 뒤로가기: 뇽 선택 상태 → 뇽 선택 해제
+  useEffect(() => {
+    if (!selectedNyong || selectedImage) return;
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      cancelNyongSelection();
+      return true;
+    });
+    return () => handler.remove();
+  }, [selectedNyong, selectedImage]);
+
   // 화면 포커스될 때 뇽 목록 새로고침
   useFocusEffect(
     useCallback(() => {

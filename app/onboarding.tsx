@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  BackHandler,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -61,6 +62,23 @@ export default function OnboardingScreen() {
       if (cooldownRef.current) clearInterval(cooldownRef.current);
     };
   }, [resendCooldown > 0]);
+
+  // Android 뒤로가기: 온보딩 스텝 내 뒤로가기 처리
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (step === 'verify') {
+        setStep('signup');
+        setOtpCode('');
+        return true;
+      }
+      if (step === 'signup') {
+        setStep('welcome');
+        return true;
+      }
+      return true; // welcome: 루트 — 모달 dismiss 방지
+    });
+    return () => handler.remove();
+  }, [step]);
 
   const openPrivacyPolicy = () => {
     WebBrowser.openBrowserAsync('https://github.com/sunhyeong-hong/nyong/blob/main/privacy-policy.md');

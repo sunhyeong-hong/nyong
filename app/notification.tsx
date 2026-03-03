@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  BackHandler,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
@@ -96,7 +97,7 @@ const FALLBACK_CAT_IMAGES = [
 export default function NotificationScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ catId?: string; catImage?: string; preUnlocked?: string; nyongExtraId?: string; nyongExtraName?: string }>();
-  const { addReceivedCat, isTestMode, session, profile } = useAuth();
+  const { addReceivedCat, isTestMode, session, profile, setPendingOpenNyongId } = useAuth();
 
   // catId는 이제 delivery.id로 사용됨
   const deliveryId = params.catId ? parseInt(params.catId, 10) : null;
@@ -159,6 +160,18 @@ export default function NotificationScreen() {
   const [isMusicOn, setIsMusicOn] = useState(true);
   const musicStarted = useRef(false);
   const shouldAutoPlayMusic = useRef(false); // 타이머 시작 시 true
+
+  // Android 뒤로가기: 펀치 중엔 차단, 힌트/완료 상태에서만 종료 허용
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (showHint || isFinished) {
+        handleFinish();
+        return true;
+      }
+      return true; // 펀치 중/잠금 중: 차단 (hits 보호)
+    });
+    return () => handler.remove();
+  }, [showHint, isFinished, nyongExtraId, nyongId]);
 
   // 배경음악 로드만 (재생은 첫 뇽펀치 시 시작)
   useEffect(() => {
@@ -495,14 +508,13 @@ export default function NotificationScreen() {
     }
   };
 
-  // Navigate to gallery
+  // Navigate to gallery — 모달을 정상 dismiss (스택 이중 쌓기 방지)
   const handleFinish = () => {
     const targetNyongId = nyongExtraId ?? nyongId;
     if (targetNyongId) {
-      router.replace({ pathname: '/(tabs)/', params: { openNyongId: targetNyongId.toString() } });
-    } else {
-      router.replace('/(tabs)/');
+      setPendingOpenNyongId(targetNyongId);
     }
+    router.back();
   };
 
   // 뇽 비 이펙트 (100 배수)

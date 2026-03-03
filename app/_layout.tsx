@@ -4,19 +4,29 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from '../contexts/AuthContext';
 import { useEffect } from 'react';
-import { NativeModules } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 
 export default function RootLayout() {
   useEffect(() => {
-    if (NativeModules.RNGoogleMobileAdsModule) {
-      const { default: MobileAds, MaxAdContentRating } = require('react-native-google-mobile-ads');
-      MobileAds()
-        .setRequestConfiguration({
-          maxAdContentRating: MaxAdContentRating.T,
-        })
-        .then(() => MobileAds().initialize())
-        .catch(() => {});
-    }
+    const initAds = async () => {
+      // iOS: ATT 권한 요청 (광고 추적 허용)
+      if (Platform.OS === 'ios') {
+        try {
+          const { requestTrackingPermissionsAsync } = require('expo-tracking-transparency');
+          await requestTrackingPermissionsAsync();
+        } catch {}
+      }
+
+      if (NativeModules.RNGoogleMobileAdsModule) {
+        const { default: MobileAds, MaxAdContentRating } = require('react-native-google-mobile-ads');
+        await MobileAds()
+          .setRequestConfiguration({
+            maxAdContentRating: MaxAdContentRating.T,
+          });
+        await MobileAds().initialize();
+      }
+    };
+    initAds().catch(() => {});
   }, []);
 
   return (

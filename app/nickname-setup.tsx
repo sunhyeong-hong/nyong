@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  BackHandler,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +29,12 @@ export default function NicknameSetupScreen() {
   const { session, profile, refreshProfile } = useAuth();
   const [nickname, setNickname] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Android 뒤로가기 차단 — 닉네임 설정은 필수 단계
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => handler.remove();
+  }, []);
 
   const handleStart = async () => {
     if (!nickname.trim()) {

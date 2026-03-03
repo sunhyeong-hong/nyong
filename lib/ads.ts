@@ -1,4 +1,4 @@
-import { NativeModules } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 
 export type AdType = 'unlock' | 'extra' | 'nyong_extra';
 
@@ -18,7 +18,9 @@ function getAdsModule() {
 function getAdUnitId(): string {
   const ads = getAdsModule();
   if (__DEV__ && ads?.TestIds) return ads.TestIds.REWARDED;
-  return 'ca-app-pub-4591317861924477/8689212330';
+  return Platform.OS === 'ios'
+    ? 'ca-app-pub-4591317861924477/7520041832'
+    : 'ca-app-pub-4591317861924477/8689212330';
 }
 
 /**

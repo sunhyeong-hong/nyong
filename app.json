@@ -15,7 +15,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.nyong.app"
+      "bundleIdentifier": "com.nyong.app",
+      "buildNumber": "2",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -48,9 +52,16 @@
       "expo-font",
       "expo-updates",
       [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "광고 맞춤화를 위해 사용됩니다. 허용하면 더 관련성 높은 광고를 볼 수 있어요."
+        }
+      ],
+      [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-4591317861924477~8090446533"
+          "androidAppId": "ca-app-pub-4591317861924477~8090446533",
+          "iosAppId": "ca-app-pub-4591317861924477~7779537491"
         }
       ]
     ],

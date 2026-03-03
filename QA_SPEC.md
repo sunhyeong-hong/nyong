@@ -458,6 +458,10 @@
 - [ ] 태그 입력 → 사진에 태그 저장
 - [ ] 업로드 중 스피너 표시
 - [ ] 업로드 성공 후 UI 리셋
+- [ ] **업로드 성공 후 갤러리에 새 사진 즉시 표시** (fetchNyongUploads 갱신)
+- [ ] **업로드 성공 후 "이미 업로드" 버튼 상태 유지** (새로고침해도 변하지 않음)
+- [ ] **업로드 성공 → 앱 새로고침 → 같은 뇽 업로드 버튼 여전히 비활성화**
+- [ ] 같은 뇽에 오늘 두 번째 업로드 시도 → 서버 중복 체크에서 차단 (uploads 테이블 직접 조회)
 
 ### 5.6 업로드 히스토리 (뇽펀치 통계)
 
@@ -468,14 +472,32 @@
 | 표시 형식 | 날짜 + #태그 + "N뇽펀치를 받았어요!" |
 | 오늘 업로드 | "배달 중..." 표시 (아직 배달 전) |
 | 정렬 | 최신순 / 뇽펀치순 전환 가능 |
+| 날짜 필터 | `uploaded_at <= NOW()` — 오늘 업로드 포함, 미래 시딩 데이터만 제외 |
 
 **테스트 케이스:**
 - [ ] 업로드 히스토리 → 해당 뇽의 모든 업로드 사진 표시
 - [ ] hits 표시 → 모든 수신자의 뇽펀치 합산값 (본인에게 배달된 것만이 아님)
 - [ ] 다른 사용자가 extra delivery로 받은 사진의 hits도 합산에 포함
 - [ ] 오늘 업로드한 사진 → "배달 중..." 표시
+- [ ] **오늘 업로드한 사진이 히스토리 목록에 즉시 포함됨** (RPC 날짜 필터가 오늘 데이터를 제외하지 않는지 검증)
 - [ ] DB: `uploads.hits` 컬럼은 사용하지 않음 (deliveries에서 실시간 합산)
 - [ ] 총 뇽펀치 카드 → `SUM(all upload hits)` 정확히 표시
+
+### 5.7 업로드 후 상태 일관성 (E2E)
+
+> **과거 버그 (2026-03-03):** `get_nyong_uploads` RPC의 날짜 필터가 `< 오늘 자정(KST)`으로 설정되어 오늘 업로드한 사진이 갤러리에 표시되지 않고, `alreadyUploadedToday` 판정도 false로 리셋되는 버그 발생. 업로드는 DB에 정상 저장되었으나 클라이언트에서 "없는 것"으로 처리됨.
+
+**테스트 케이스:**
+- [ ] 업로드 성공 → `fetchNyongUploads()` 호출 → 새 사진이 `nyongUploads` 배열에 포함
+- [ ] 업로드 성공 → 갤러리 리스트에 새 사진 즉시 보임 (날짜/태그 표시)
+- [ ] 업로드 성공 → 업로드 버튼 "이미 업로드" 상태로 비활성화
+- [ ] 업로드 성공 → 화면 새로고침(pull-to-refresh) → 버튼 여전히 비활성화
+- [ ] 업로드 성공 → 다른 탭 갔다가 복귀 → 버튼 여전히 비활성화
+- [ ] 업로드 성공 → 앱 종료 후 재실행 → 같은 뇽 선택 → 버튼 비활성화 + 갤러리에 사진 보임
+- [ ] `get_nyong_uploads` RPC → `uploaded_at <= NOW()` 필터 확인 (오늘 업로드 포함)
+- [ ] `get_nyong_uploads` RPC → 미래 날짜 업로드(`uploaded_at > NOW()`)는 제외
+- [ ] `alreadyUploadedToday` 판정이 RPC 결과에 의존 → RPC 결과에 오늘 업로드 포함 시 `true`
+- [ ] 안드로이드/iOS 양쪽에서 동일 동작 확인
 
 ---
 
@@ -1191,6 +1213,21 @@
 
 ### 17.2 RPC 함수 종합 테스트
 
+#### get_nyong_uploads(target_nyong_id)
+
+> **과거 버그 (2026-03-03):** 날짜 필터가 `< date_trunc('day', NOW() AT TIME ZONE 'Asia/Seoul')`로 변경되어 오늘 업로드 전체가 제외됨. 클라이언트 `fetchNyongUploads`가 이 RPC 결과로 `alreadyUploadedToday`를 판정하므로, 업로드 성공 후에도 버튼이 재활성화되고 갤러리에 사진이 안 보이는 연쇄 버그 발생.
+
+| 테스트 | 기대 결과 |
+|--------|-----------|
+| 오늘 업로드한 사진 | 결과에 **포함** (`uploaded_at <= NOW()`) |
+| 어제/과거 업로드 | 결과에 포함 |
+| 미래 날짜 업로드 (시딩) | 결과에서 **제외** (`uploaded_at > NOW()`) |
+| 다른 뇽의 업로드 | 결과에서 제외 (target_nyong_id 필터) |
+| hits 합산 | `SUM(deliveries.hits)` 정확히 반환 |
+| 배달 없는 업로드 | hits = 0 (LEFT JOIN + COALESCE) |
+| SECURITY DEFINER | RLS 우회하여 모든 사용자의 uploads 조회 가능 |
+| **DB 함수 정의 검증** | `prosrc`에 `uploaded_at <= NOW()` 포함 확인 (< 오늘자정 아님) |
+
 #### record_delivery_hits(delivery_id, hit_count)
 
 | 테스트 | 기대 결과 |
@@ -1351,6 +1388,22 @@ HAVING SUM(count) > 2;
 SELECT d.id FROM deliveries d
 LEFT JOIN uploads u ON d.upload_id = u.id
 WHERE u.id IS NULL;
+
+-- 11. get_nyong_uploads RPC 날짜 필터 검증 (오늘 업로드 제외 버그 재발 감지)
+-- prosrc에 '< date_trunc' 패턴이 있으면 오늘 업로드가 제외되는 버그
+SELECT proname, prosrc FROM pg_proc
+WHERE proname = 'get_nyong_uploads'
+  AND prosrc LIKE '%< date_trunc%';
+-- 결과가 0행이면 정상, 1행 이상이면 버그 재발
+
+-- 12. 오늘 업로드했지만 get_nyong_uploads에서 누락된 건 탐지
+SELECT u.id, u.nyong_id, u.uploaded_at
+FROM uploads u
+WHERE u.uploaded_at >= (NOW() AT TIME ZONE 'Asia/Seoul')::date AT TIME ZONE 'Asia/Seoul'
+  AND u.uploaded_at <= NOW()
+  AND NOT EXISTS (
+    SELECT 1 FROM get_nyong_uploads(u.nyong_id) g WHERE g.id = u.id
+  );
 ```
 
 ### 17.5 멀티유저 시나리오 테스트
@@ -1410,7 +1463,11 @@ WHERE u.id IS NULL;
 |------|---|
 | Supabase Project | rhuzdhrqmwrsbnnwttsa |
 | Region | ap-northeast-1 (Tokyo) |
-| AdMob App ID | ca-app-pub-4591317861924477~8090446533 |
-| AdMob Unit ID | ca-app-pub-4591317861924477/8689212330 |
+| AdMob Android App ID | ca-app-pub-4591317861924477~8090446533 |
+| AdMob Android Unit ID | ca-app-pub-4591317861924477/8689212330 |
+| AdMob iOS App ID | ca-app-pub-4591317861924477~7779537491 |
+| AdMob iOS Unit ID | ca-app-pub-4591317861924477/7520041832 |
 | 패키지명 | com.nyong.app |
+| iOS Bundle ID | com.nyong.app |
+| ASC App ID | 6759514657 |
 | 최소 Android SDK | API 24 |

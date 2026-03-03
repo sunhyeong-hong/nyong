@@ -36,6 +36,8 @@ interface AuthContextType {
   sendTestNotification: () => void;
   clearIncomingCat: () => void;
   clearPendingNotification: () => void;
+  pendingOpenNyongId: number | null;
+  setPendingOpenNyongId: (id: number | null) => void;
   addReceivedCat: (catId: number, imageUrl: string, hits: number) => void;
   checkPendingDeliveries: () => Promise<void>;
 }
@@ -71,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [incomingCat, setIncomingCat] = useState<IncomingCat | null>(null);
   const [pendingNotification, setPendingNotification] = useState<PendingNotification | null>(null);
   const [testReceivedCats, setTestReceivedCats] = useState<ReceivedCat[]>([]);
+  const [pendingOpenNyongId, setPendingOpenNyongId] = useState<number | null>(null);
   const notificationListener = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
@@ -365,6 +368,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sendTestNotification,
       clearIncomingCat,
       clearPendingNotification,
+      pendingOpenNyongId,
+      setPendingOpenNyongId,
       addReceivedCat,
       checkPendingDeliveries,
     }}>

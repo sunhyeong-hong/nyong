@@ -44,7 +44,7 @@ export default function GalleryScreen() {
   const router = useRouter();
   const { openNyongId } = useLocalSearchParams<{ openNyongId?: string }>();
   const insets = useSafeAreaInsets();
-  const { session, profile, isLoading, isTestMode, testReceivedCats, incomingCat, clearIncomingCat, pendingNotification, clearPendingNotification } = useAuth();
+  const { session, profile, isLoading, isTestMode, testReceivedCats, incomingCat, clearIncomingCat, pendingNotification, clearPendingNotification, pendingOpenNyongId, setPendingOpenNyongId } = useAuth();
   const [items, setItems] = useState<Delivery[]>([]);
   const [isPinching, setIsPinching] = useState(false);
   const [isLoadingCats, setIsLoadingCats] = useState(true);
@@ -330,6 +330,18 @@ export default function GalleryScreen() {
       router.setParams({ openNyongId: undefined as any });
     }
   }, [openNyongId]);
+
+  // notification에서 handleFinish → setPendingOpenNyongId 후 router.back()으로 돌아왔을 때
+  useFocusEffect(
+    useCallback(() => {
+      if (pendingOpenNyongId) {
+        const targetId = pendingOpenNyongId;
+        setPendingOpenNyongId(null);
+        setPendingNyongId(targetId);
+        setSortMode('name');
+      }
+    }, [pendingOpenNyongId])
+  );
 
   useEffect(() => {
     if (pendingNyongId && groupedByNyong.length > 0) {
