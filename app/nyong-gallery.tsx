@@ -11,9 +11,10 @@ import {
   RefreshControl,
   Animated,
   Alert,
+  Modal,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -93,6 +94,7 @@ export default function NyongGalleryScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [viewerHeight, setViewerHeight] = useState(height);
   const [topPunchers, setTopPunchers] = useState<Record<number, { nickname: string; totalHits: number }[]>>({});
+  const [showProfilePhoto, setShowProfilePhoto] = useState(false);
 
   const handleReport = (uploadId: number) => {
     const reasons = [
@@ -127,11 +129,13 @@ export default function NyongGalleryScreen() {
     );
   };
 
-  useEffect(() => {
-    if (nyongId) {
-      fetchNyongAndUploads();
-    }
-  }, [nyongId]);
+  useFocusEffect(
+    useCallback(() => {
+      if (nyongId) {
+        fetchNyongAndUploads();
+      }
+    }, [nyongId])
+  );
 
   useEffect(() => {
     if (selectedIndex === null) return;
@@ -166,7 +170,7 @@ export default function NyongGalleryScreen() {
       // 해당 뇽의 업로드 사진들 + hits 합산 (RPC로 RLS 우회)
       const { data: uploadsData, error: uploadsError } = await supabase.rpc(
         'get_nyong_uploads',
-        { target_nyong_id: parseInt(nyongId) }
+        { target_nyong_id: parseInt(nyongId), delivered_only: true }
       );
 
       if (uploadsError) throw uploadsError;
@@ -191,11 +195,12 @@ export default function NyongGalleryScreen() {
 
       // uploads에서 실제 hits 합산하여 nyong stats 보정
       const calculatedTotalHits = fetchedUploads.reduce((sum: number, u: { hits: number }) => sum + (u.hits || 0), 0);
+      const calculatedMonthlyHits = fetchedUploads.reduce((sum: number, u: { monthly_hits?: number }) => sum + (u.monthly_hits || 0), 0);
       if (nyongData) {
         setNyong({
           ...nyongData,
           total_hits: calculatedTotalHits,
-          monthly_hits: calculatedTotalHits,
+          monthly_hits: calculatedMonthlyHits,
           upload_count: fetchedUploads.length,
         });
       }
@@ -304,12 +309,22 @@ export default function NyongGalleryScreen() {
       {/* 뇽 정보 카드 */}
       {nyong && (
         <View style={styles.nyongCard}>
-          <Image
-            source={{ uri: nyong.front_photo_url }}
-            style={styles.nyongPhoto}
-          />
+          <TouchableOpacity activeOpacity={0.8} onPress={() => setShowProfilePhoto(true)}>
+            <Image
+              source={{ uri: nyong.front_photo_url }}
+              style={styles.nyongPhoto}
+            />
+          </TouchableOpacity>
           <View style={styles.nyongInfo}>
-            <Text style={styles.nyongName}>{nyong.name}</Text>
+            <View style={styles.nameRow}>
+              <Text style={styles.nyongName}>{nyong.name}</Text>
+              <TouchableOpacity
+                style={styles.idCardButton}
+                onPress={() => router.push(`/nyong-id-card?nyongId=${nyongId}`)}
+              >
+                <Text style={styles.idCardButtonText}>ID 카드 보기</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{formatCount(nyong.upload_count)}</Text>
@@ -326,14 +341,24 @@ export default function NyongGalleryScreen() {
                 <Text style={styles.statLabel}>이번 달</Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.idCardButton}
-              onPress={() => router.push(`/nyong-id-card?nyongId=${nyongId}`)}
-            >
-              <Text style={styles.idCardButtonText}>ID 카드 보기</Text>
-            </TouchableOpacity>
           </View>
         </View>
+      )}
+
+      {/* 프로필 사진 원본보기 */}
+      {nyong && (
+        <Modal visible={showProfilePhoto} transparent animationType="fade" onRequestClose={() => setShowProfilePhoto(false)}>
+          <TouchableOpacity style={styles.profileModal} activeOpacity={1} onPress={() => setShowProfilePhoto(false)}>
+            <TouchableOpacity style={styles.profileCloseButton} onPress={() => setShowProfilePhoto(false)}>
+              <Text style={styles.profileCloseText}>✕</Text>
+            </TouchableOpacity>
+            <Image
+              source={{ uri: nyong.front_photo_url }}
+              style={styles.profileModalImage}
+              contentFit="contain"
+            />
+          </TouchableOpacity>
+        </Modal>
       )}
 
       {/* 사진 그리드 */}
@@ -421,11 +446,16 @@ const styles = StyleSheet.create({
   nyongInfo: {
     flex: 1,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
   nyongName: {
     fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 12,
   },
   statsRow: {
     flexDirection: 'row',
@@ -451,12 +481,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   idCardButton: {
-    marginTop: 10,
     backgroundColor: colors.primaryLight,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
     borderRadius: radius.pill,
-    alignSelf: 'flex-start',
   },
   idCardButtonText: {
     fontSize: 12,
@@ -574,5 +602,32 @@ const styles = StyleSheet.create({
     color: colors.whiteTranslucent,
     fontWeight: '500',
     marginTop: -1,
+  },
+  profileModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileCloseButton: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    zIndex: 1,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileCloseText: {
+    color: colors.white,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  profileModalImage: {
+    width: width,
+    height: height,
   },
 });

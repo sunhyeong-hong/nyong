@@ -186,6 +186,7 @@
 - [ ] 이미 본 사진 탭 → 풀스크린 갤러리
 - [ ] 풀스크린에서 상하 스와이프 → 다른 사진 (세로 스크롤)
 - [ ] 풀스크린에서 핀치 줌 → 확대/축소
+- [ ] 풀스크린 스와이프 시 잠긴 사진 → 블러(blurRadius=25) + 🔒 + 날짜(M/D) + 잠자는 타이틀 표시 (잠금 해제 없이 원본 노출 금지)
 - [ ] 뒤로가기 → 풀스크린 닫힘
 
 ### 3.4 펀치순 (punch) 보기
@@ -627,12 +628,15 @@
 
 **테스트 케이스:**
 - [ ] 뇽 정보 카드 → 이름, 통계 정확히 표시
-- [ ] 사진 그리드 → 해당 뇽 사진만 표시
+- [ ] 사진 그리드 → 해당 뇽 사진만 표시 (**배달 완료된 사진만** — `delivered_only: true`)
+- [ ] 미배달 사진(내일 배달 예정 등)이 그리드에 표시되지 않음
 - [ ] 사진 탭 → 풀스크린 진입
 - [ ] 풀스크린 핀치 줌 → 확대/축소
 - [ ] 롤링 펀처 → 2.5초마다 자동 전환
 - [ ] 빈 상태 → 안내 메시지 + (본인 뇽이면) 업로드 버튼
 - [ ] 명예의 전당에서 진입 → 정상 표시
+- [ ] 풀스크린 뷰어에서 잠긴 사진 → 블러 + 🔒 + 날짜 표시 (원본 노출 금지)
+- [ ] 잠금 해제 후 갤러리 복귀 → **자동 새로고침** (useFocusEffect, 수동 리프레시 불필요)
 
 ### 8.1 Hits/통계 데이터 정확성
 
@@ -667,6 +671,10 @@
 - [ ] 배달 0건인 upload → hits = 0 표시
 - [ ] 모든 delivery가 hits=0인 upload → hits = 0 표시
 - [ ] uploaded_at이 미래인 upload → `get_nyong_uploads`에서 제외 (NOW() 필터)
+- [ ] **delivered_only=true일 때** 배달 기록 없는 업로드(내일 배달 예정 등) → 목록에서 제외
+- [ ] **delivered_only=false(기본값)일 때** 미배달 업로드도 표시 (업로드 화면 호환성)
+
+> **과거 장애 (2026-03-04):** `get_nyong_uploads` 파라미터 추가 시 `bigint` 타입으로 생성하여 기존 `integer` 버전과 **오버로드 충돌** 발생. PostgREST가 함수 선택 불가 → 뇽보내기/명예의전당 사진 목록 전체 장애. **교훈:** PostgreSQL 함수 수정 시 반드시 기존 파라미터 타입(`integer`)을 정확히 일치시킬 것. 타입이 다르면 새로운 오버로드가 생성됨.
 
 ---
 
@@ -1018,11 +1026,20 @@
 | 네이티브 모듈 없음 | 자동으로 성공 반환 |
 | 개발 테스트 | Test AD ID 사용 |
 
+### 14.4 iOS 광고 주의사항
+
+| 항목 | 상세 |
+|------|------|
+| 미출시 앱 | App Store 미출시 상태에서 AdMob `no-fill` 발생 가능 (정상) |
+| Android vs iOS | Android는 테스트 트랙에서도 광고 노출 가능, iOS는 미출시 시 `no-fill` 빈도 높음 |
+| 네이티브 모듈 감지 | `NativeModules.RNGoogleMobileAdsModule`로 감지 (New Architecture에서도 정상 동작) |
+
 **테스트 케이스:**
 - [ ] 프로덕션 빌드 → 실제 광고 표시
 - [ ] 광고 시청 완료 → 보상 지급
 - [ ] 광고 중간에 닫기 → 보상 미지급
 - [ ] 광고 로드 실패 → 기본 성공 반환 (사용자 불이익 없음)
+- [ ] iOS 미출시 상태 → `no-fill` 에러 발생 가능 (코드 버그 아님, App Store 출시 후 재확인)
 
 ---
 
@@ -1213,20 +1230,26 @@
 
 ### 17.2 RPC 함수 종합 테스트
 
-#### get_nyong_uploads(target_nyong_id)
+#### get_nyong_uploads(target_nyong_id integer, delivered_only boolean DEFAULT false)
 
 > **과거 버그 (2026-03-03):** 날짜 필터가 `< date_trunc('day', NOW() AT TIME ZONE 'Asia/Seoul')`로 변경되어 오늘 업로드 전체가 제외됨. 클라이언트 `fetchNyongUploads`가 이 RPC 결과로 `alreadyUploadedToday`를 판정하므로, 업로드 성공 후에도 버튼이 재활성화되고 갤러리에 사진이 안 보이는 연쇄 버그 발생.
 
+> **과거 장애 (2026-03-04):** `delivered_only` 파라미터 추가 시 `bigint` 타입으로 오버로드 생성 → PostgREST 함수 선택 불가 → 전체 사진 목록 장애. 파라미터 타입은 반드시 기존과 동일한 `integer` 사용.
+
 | 테스트 | 기대 결과 |
 |--------|-----------|
-| 오늘 업로드한 사진 | 결과에 **포함** (`uploaded_at <= NOW()`) |
+| 오늘 업로드한 사진 (delivered_only=false) | 결과에 **포함** (`uploaded_at <= NOW()`) |
 | 어제/과거 업로드 | 결과에 포함 |
 | 미래 날짜 업로드 (시딩) | 결과에서 **제외** (`uploaded_at > NOW()`) |
 | 다른 뇽의 업로드 | 결과에서 제외 (target_nyong_id 필터) |
+| delivered_only=true | 배달 기록(deliveries) 있는 업로드만 반환 |
+| delivered_only=false (기본값) | 배달 유무 관계없이 모든 업로드 반환 |
+| 파라미터 미전달 | delivered_only=false로 동작 (하위 호환성) |
 | hits 합산 | `SUM(deliveries.hits)` 정확히 반환 |
-| 배달 없는 업로드 | hits = 0 (LEFT JOIN + COALESCE) |
+| 배달 없는 업로드 (delivered_only=false) | hits = 0 (LEFT JOIN + COALESCE) |
 | SECURITY DEFINER | RLS 우회하여 모든 사용자의 uploads 조회 가능 |
 | **DB 함수 정의 검증** | `prosrc`에 `uploaded_at <= NOW()` 포함 확인 (< 오늘자정 아님) |
+| **오버로드 검증** | `SELECT COUNT(*) FROM pg_proc WHERE proname='get_nyong_uploads'` → **정확히 1개** |
 
 #### record_delivery_hits(delivery_id, hit_count)
 
@@ -1396,7 +1419,17 @@ WHERE proname = 'get_nyong_uploads'
   AND prosrc LIKE '%< date_trunc%';
 -- 결과가 0행이면 정상, 1행 이상이면 버그 재발
 
--- 12. 오늘 업로드했지만 get_nyong_uploads에서 누락된 건 탐지
+-- 12. RPC 함수 오버로드 검증 (오버로드 충돌 재발 방지)
+-- 각 함수가 정확히 1개만 존재해야 함. 2개 이상이면 PostgREST 호출 장애 위험
+SELECT proname, COUNT(*) AS overload_count
+FROM pg_proc
+WHERE proname IN ('get_nyong_uploads', 'get_extra_delivery', 'get_nyong_extra_delivery',
+                  'get_nyong_extra_status', 'record_delivery_hits', 'get_top_nyongs')
+GROUP BY proname
+HAVING COUNT(*) > 1;
+-- 결과가 0행이면 정상
+
+-- 13. 오늘 업로드했지만 get_nyong_uploads에서 누락된 건 탐지
 SELECT u.id, u.nyong_id, u.uploaded_at
 FROM uploads u
 WHERE u.uploaded_at >= (NOW() AT TIME ZONE 'Asia/Seoul')::date AT TIME ZONE 'Asia/Seoul'

@@ -453,8 +453,7 @@ export default function GalleryScreen() {
         ]
       );
       return;
-    } else if (item.status === 'delivered' && !item.received_at) {
-      // 아직 안 본 배달 → 바로 뇽펀치 화면으로
+    } else if (item.status === 'delivered') {
       router.push({
         pathname: '/notification',
         params: {
@@ -616,6 +615,7 @@ export default function GalleryScreen() {
     const hits = getHits(item);
     const tag = item.upload?.tag;
     const nyongName = item.upload?.nyong?.name;
+    const locked = isItemLocked(item);
     const dateStr = item.delivered_at
       ? (() => { const d = new Date(item.delivered_at); return `'${String(d.getFullYear()).slice(2)} ${d.getMonth() + 1} ${d.getDate()}`; })()
       : null;
@@ -628,6 +628,35 @@ export default function GalleryScreen() {
       nyongName,
       tag ? `#${tag}` : null,
     ].filter(Boolean).join(' ');
+
+    if (locked) {
+      return (
+        <View style={[styles.fullscreenPage, { height: viewerHeight }]}>
+          <View style={styles.fullscreenImageWrapper}>
+            <View style={styles.fullscreenImageFrame}>
+              <Image
+                source={{ uri: imageUrl }}
+                style={styles.fullscreenImageFill}
+                contentFit="cover"
+                blurRadius={25}
+              />
+              <View style={styles.fullscreenLockedOverlay}>
+                {item.delivered_at && (
+                  <Text style={styles.fullscreenLockedDate}>
+                    {(() => {
+                      const d = new Date(new Date(item.delivered_at).getTime() + 9 * 60 * 60 * 1000);
+                      return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+                    })()}
+                  </Text>
+                )}
+                <Text style={{ fontSize: 48 }}>🔒</Text>
+                <Text style={styles.fullscreenLockedText}>{t().notification.sleepingTitle}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      );
+    }
 
     return (
       <View style={[styles.fullscreenPage, { height: viewerHeight }]}>
@@ -1229,5 +1258,22 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
     fontWeight: '500',
     marginTop: -1,
+  },
+  fullscreenLockedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  fullscreenLockedDate: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: 8,
+  },
+  fullscreenLockedText: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 12,
   },
 });

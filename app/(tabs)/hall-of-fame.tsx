@@ -33,6 +33,7 @@ export default function HallOfFameScreen() {
   const [topNyongs, setTopNyongs] = useState<Nyong[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
   useEffect(() => {
     if (isTestMode) {
@@ -40,23 +41,24 @@ export default function HallOfFameScreen() {
       setIsLoading(false);
       return;
     }
-    fetchTopNyongs();
-  }, [isTestMode]);
+    fetchTopNyongs(timeRange);
+  }, [isTestMode, timeRange]);
 
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const { data } = await supabase.rpc('get_top_nyongs', { limit_count: 5 });
+      const { data } = await supabase.rpc('get_top_nyongs', { limit_count: 5, time_range: timeRange });
       setTopNyongs(data || []);
     } finally {
       setIsRefreshing(false);
     }
-  }, []);
+  }, [timeRange]);
 
-  const fetchTopNyongs = async () => {
+  const fetchTopNyongs = async (range: string) => {
     try {
       const { data, error } = await supabase.rpc('get_top_nyongs', {
         limit_count: 5,
+        time_range: range,
       });
 
       if (error) throw error;
@@ -68,17 +70,28 @@ export default function HallOfFameScreen() {
     }
   };
 
-  const getRankEmoji = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return '\u{1F451}';
-      case 2:
-        return '\u{1F948}';
-      case 3:
-        return '\u{1F949}';
+  const getHeaderTitle = () => {
+    switch (timeRange) {
+      case 'daily':
+        return t().hallOfFame.headerTitleDaily;
+      case 'weekly':
+        return t().hallOfFame.headerTitleWeekly;
       default:
-        return `${rank}`;
+        return format(t().hallOfFame.headerTitle, { month: new Date().getMonth() + 1 });
     }
+  };
+
+  const FILTERS = [
+    { key: 'daily' as const, label: t().hallOfFame.filterDaily },
+    { key: 'weekly' as const, label: t().hallOfFame.filterWeekly },
+    { key: 'monthly' as const, label: t().hallOfFame.filterMonthly },
+  ];
+
+  const PAW_IMAGES: Record<number, any> = {
+    2: require('../../assets/paw_2.png'),
+    3: require('../../assets/paw_3.png'),
+    4: require('../../assets/paw_4.png'),
+    5: require('../../assets/paw_5.png'),
   };
 
 
@@ -103,7 +116,26 @@ export default function HallOfFameScreen() {
           style={styles.headerImage}
           contentFit="contain"
         />
-        <Text style={styles.headerTitle}>{format(t().hallOfFame.headerTitle, { month: new Date().getMonth() + 1 })}</Text>
+        <View style={styles.headerRight}>
+          <Text style={styles.headerTitle}>{getHeaderTitle()}</Text>
+          <View style={styles.filterRow}>
+            {FILTERS.map((f) => (
+              <TouchableOpacity
+                key={f.key}
+                style={[styles.filterTab, timeRange === f.key && styles.filterTabActive]}
+                onPress={() => {
+                  if (timeRange !== f.key) {
+                    setTimeRange(f.key);
+                  }
+                }}
+              >
+                <Text style={[styles.filterTabText, timeRange === f.key && styles.filterTabTextActive]}>
+                  {f.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
       </View>
 
       {topNyongs.length > 0 ? (
@@ -132,12 +164,9 @@ export default function HallOfFameScreen() {
                 </View>
                 <View style={styles.firstCardInfo}>
                   <Text style={styles.firstName} numberOfLines={1}>{first.name}</Text>
-                  <View style={styles.hitsRow}>
-                    <CatPaw width={16} height={16} />
-                    <Text style={styles.firstHitsText}>
-                      {format(t().hallOfFame.monthlyHits, { count: formatCount(first.monthly_hits) })}
-                    </Text>
-                  </View>
+                  <Text style={styles.firstHitsText}>
+                    {format(t().hallOfFame.monthlyHits, { count: formatCount(first.monthly_hits) })}
+                  </Text>
                 </View>
               </TouchableOpacity>
             );
@@ -157,17 +186,18 @@ export default function HallOfFameScreen() {
                     style={styles.photo}
                   />
                   <View style={styles.rankBadge}>
-                    <Text style={styles.rankEmoji}>{getRankEmoji(rank)}</Text>
+                    <Image
+                      source={PAW_IMAGES[rank]}
+                      style={styles.rankPawImage}
+                      contentFit="contain"
+                    />
                   </View>
                 </View>
                 <View style={styles.cardInfo}>
                   <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-                  <View style={styles.hitsRow}>
-                    <CatPaw width={14} height={14} />
-                    <Text style={styles.hitsText}>
-                      {format(t().hallOfFame.monthlyHits, { count: formatCount(item.monthly_hits) })}
-                    </Text>
-                  </View>
+                  <Text style={styles.hitsText}>
+                    {format(t().hallOfFame.monthlyHits, { count: formatCount(item.monthly_hits) })}
+                  </Text>
                 </View>
               </TouchableOpacity>
             );
@@ -183,7 +213,11 @@ export default function HallOfFameScreen() {
           <Text style={styles.emptyText}>{t().hallOfFame.empty}</Text>
         </View>
       )}
-      <Text style={styles.rewardInfo}>{t().hallOfFame.rewardInfo}</Text>
+      {timeRange === 'monthly' && (
+        <View style={styles.rewardInfoCard}>
+          <Text style={styles.rewardInfo}>{t().hallOfFame.rewardInfo}</Text>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -205,20 +239,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: CARD_PADDING,
     paddingTop: 0,
-    marginBottom: -12,
+    marginBottom: -20,
     gap: 0,
   },
   headerImage: {
     width: 120,
     height: 120,
   },
+  headerRight: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 8,
+    marginRight: 10,
+  },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.primary,
-    flex: 1,
     textAlign: 'center',
-    marginRight: 20,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  filterTab: {
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    backgroundColor: colors.white,
+  },
+  filterTabActive: {
+    backgroundColor: colors.primary,
+  },
+  filterTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  filterTabTextActive: {
+    color: colors.white,
   },
   grid: {
     flexDirection: 'row',
@@ -253,8 +312,8 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   firstCrownImage: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
   },
   firstCardInfo: {
     padding: 14,
@@ -286,22 +345,12 @@ const styles = StyleSheet.create({
   },
   rankBadge: {
     position: 'absolute',
-    top: 8,
-    left: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    top: 3,
+    left: 3,
   },
-  rankEmoji: {
-    fontSize: 18,
+  rankPawImage: {
+    width: 45,
+    height: 45,
   },
   cardInfo: {
     padding: 12,
@@ -323,13 +372,18 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '500',
   },
-  rewardInfo: {
-    fontSize: 11,
-    color: colors.textMuted,
-    textAlign: 'center',
-    paddingHorizontal: 20,
+  rewardInfoCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    marginHorizontal: CARD_PADDING,
     marginTop: 8,
     marginBottom: 30,
+    padding: 14,
+  },
+  rewardInfo: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
     lineHeight: 16,
   },
   emptyContainer: {

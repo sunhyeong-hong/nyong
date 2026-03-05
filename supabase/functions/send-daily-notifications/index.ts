@@ -88,12 +88,25 @@ Deno.serve(async (req) => {
     const todayStart = new Date(`${today}T00:00:00+09:00`).toISOString();
     const { data: todayDeliveries } = await supabase
       .from('deliveries')
-      .select('receiver_id')
+      .select('receiver_id, upload_id')
       .gte('delivered_at', todayStart);
 
     const alreadyDeliveredToday = new Set(
       (todayDeliveries || []).map((d: { receiver_id: string }) => d.receiver_id)
     );
+
+    // 수신자별 이미 받은 upload_id 목록 (전체 이력 — 중복 배달 방지)
+    const { data: allDeliveries } = await supabase
+      .from('deliveries')
+      .select('receiver_id, upload_id');
+
+    const deliveredUploadsByUser = new Map<string, Set<number>>();
+    (allDeliveries || []).forEach((d: { receiver_id: string; upload_id: number }) => {
+      if (!deliveredUploadsByUser.has(d.receiver_id)) {
+        deliveredUploadsByUser.set(d.receiver_id, new Set());
+      }
+      deliveredUploadsByUser.get(d.receiver_id)!.add(d.upload_id);
+    });
 
     // 오늘 받지 않은 사용자만 필터링
     const usersToNotify = (eligibleUsers as Profile[]).filter((user) => {
@@ -153,11 +166,12 @@ Deno.serve(async (req) => {
 
     // 4. 각 사용자에게 알림 발송
     for (const user of selectedUsers) {
-      // 자신이 올린 것 제외한 업로드 중 랜덤 선택
-      const availableUploads = uploads.filter((u) => u.user_id !== user.id);
+      // 자신이 올린 것 + 이미 받은 것 제외한 업로드 중 랜덤 선택
+      const userDelivered = deliveredUploadsByUser.get(user.id) || new Set();
+      const availableUploads = uploads.filter((u) => u.user_id !== user.id && !userDelivered.has(u.id));
 
       if (availableUploads.length === 0) {
-        console.log(`No available uploads for user ${user.id}`);
+        console.log(`No available uploads for user ${user.id} (all already delivered)`);
         continue;
       }
 

@@ -294,7 +294,7 @@ export const en: Translations = {
     title: 'Hall of Fame',
     subtitle: 'Top 5 Nyongs This Month',
     rank: '#{rank}',
-    monthlyHits: 'Received {count} punches!',
+    monthlyHits: 'Received {count} punches',
     viewGallery: 'View Gallery',
     headerTitle: "Who's {month}'s Nyongpamine King?",
     empty: 'Nobody here yet, meow...',
@@ -305,6 +305,11 @@ export const en: Translations = {
     rankTitleDefault: 'Rising Star',
     rewardLabel: '+{points}P',
     rewardInfo: 'On the 1st of each month, last month\'s Hall of Fame winners receive\n1st 200P, 2nd 100P, 3rd 50P, 4th 30P, 5th 10P!',
+    filterDaily: 'Daily',
+    filterWeekly: 'Weekly',
+    filterMonthly: 'Monthly',
+    headerTitleDaily: "Who's today's Nyongpamine King?",
+    headerTitleWeekly: "Who's this week's Nyongpamine King?",
   },
 
   // Upload Calendar

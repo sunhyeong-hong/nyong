@@ -257,6 +257,7 @@ export default function NotificationScreen() {
 
       if (delivery) {
         // 잠금 상태 확인
+        let locked = false;
         if (delivery.delivered_at) {
           setDeliveredAt(delivery.delivered_at);
           const deliveredTime = new Date(delivery.delivered_at).getTime();
@@ -265,6 +266,7 @@ export default function NotificationScreen() {
 
           if (!preUnlocked && now - deliveredTime > oneHour) {
             setIsLocked(true);
+            locked = true;
           }
         }
 
@@ -360,7 +362,6 @@ export default function NotificationScreen() {
       if (isTestMode) {
         addReceivedCat(deliveryId || Date.now(), catImage, hits);
       } else if (deliveryId && session?.user?.id) {
-        // deliveries + nyong stats 원자적 업데이트 (단일 RPC)
         await supabase.rpc('record_delivery_hits', {
           delivery_id: deliveryId,
           hit_count: hits,
@@ -510,6 +511,13 @@ export default function NotificationScreen() {
 
   // Navigate to gallery — 모달을 정상 dismiss (스택 이중 쌓기 방지)
   const handleFinish = () => {
+    // 카운트다운 끝나기 전에 나가면 hits=0으로 received 처리 (인앱 알림 재발 방지)
+    if (!isFinished && deliveryId && session?.user?.id) {
+      supabase.rpc('record_delivery_hits', {
+        delivery_id: deliveryId,
+        hit_count: hits,
+      }).then(() => {});
+    }
     const targetNyongId = nyongExtraId ?? nyongId;
     if (targetNyongId) {
       setPendingOpenNyongId(targetNyongId);

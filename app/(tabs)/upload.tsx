@@ -199,9 +199,10 @@ export default function UploadScreen() {
       quality: 0.8,
     });
 
-    if (result.canceled || !result.assets[0]) return;
+    if (result.canceled || !result.assets?.[0]) return;
 
-    const imageUri = result.assets[0].uri;
+    let imageUri = result.assets[0].uri;
+
     setIsVerifying(true);
     setErrorMessage(null);
     setSelectedImage(null);

@@ -292,7 +292,7 @@ export const ko = {
     title: '명예의 전당',
     subtitle: '이번 달 Top 5 뇽',
     rank: '{rank}위',
-    monthlyHits: '{count}뇽펀치를 받았어요!',
+    monthlyHits: '{count}뇽펀치를 받았어요',
     viewGallery: '갤러리 보기',
     headerTitle: '{month}월 뇽파민 킹은 누구냥?',
     empty: '아직 아무도 없다냥...',
@@ -303,6 +303,11 @@ export const ko = {
     rankTitleDefault: '떠오르는 스타냥',
     rewardLabel: '+{points}P',
     rewardInfo: '매월 1일 지난 달 명예의 전당 뇽으로 선정되신 분들께\n1등 200P, 2등 100P, 3등 50P, 4등 30P, 5등 10P를 드립니다.',
+    filterDaily: '일간',
+    filterWeekly: '주간',
+    filterMonthly: '월간',
+    headerTitleDaily: '오늘의 뇽파민 킹은 누구냥?',
+    headerTitleWeekly: '이번 주 뇽파민 킹은 누구냥?',
   },
 
   // 업로드 달력
