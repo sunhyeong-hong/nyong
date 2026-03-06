@@ -53,10 +53,11 @@
 
 ### 5. 명예의 전당
 
-이번 달 뇽펀치를 가장 많이 받은 Top 5 뇽 랭킹입니다.
+뇽펀치를 가장 많이 받은 Top 5 뇽 랭킹입니다.
 
 - **1등 풀너비** — 1등은 4:3 비율의 큰 카드로 표시 (왕관 배지)
 - **2~5등 2열 그리드** — 은메달, 동메달 등 랭크 배지
+- **기간 필터** — 일간 / 주간 / 월간 전환 가능
 - **월간 리셋** — 매월 1일 monthly_hits 자동 초기화
 - **RPC 집계** — `get_top_nyongs` 함수로 deliveries 기반 실시간 집계
 
@@ -74,7 +75,7 @@
 알림을 받고 **1시간 이상 지나서** 앱을 열면 뇽이 잠들어 있습니다.
 
 - 이미지가 블러 처리되어 표시
-- **광고 시청** 후 잠금 해제 → 뇽펀치 시작
+- **광고 시청** 후 잠금 해제 → 뇽펀치 시작 (`deliveries.source = 'unlock_ad'`)
 
 ```
 [알림 수신] ── 1시간 경과 ──> [앱 열기] ── 광고 시청 ──> [잠금 해제]
@@ -83,14 +84,23 @@
                             블러 이미지                뇽펀치 시작
 ```
 
-### 뇽 하나 더 받기 (Extra)
+### 오늘의 뇽 더보기 (Extra)
 
-뇽펀치가 끝난 후 **광고를 보고 추가 뇽**을 받을 수 있습니다.
+뇽펀치가 끝난 후 **추가 뇽**을 받을 수 있습니다.
 
-- 하루 최대 **5회**까지 추가 수신 가능
-- 광고 시청 완료 → 대기 중인 다른 뇽 자동 배정
+- **무료 더보기**: 1회 무료 제공 (`source = 'extra'`)
+- **광고 더보기**: 광고 시청 후 추가 수신 (`source = 'ad_extra'`)
+- DB 레벨 횟수 제한 없음, 어제 업로드된 미수신 사진 중 랜덤 배정
 
-> 현재 광고는 플레이스홀더 (`lib/ads.ts`)로 구현되어 있으며, 실제 AdMob/Unity Ads SDK 연동 필요
+### 뇽별 한장 더 받기 (Nyong Extra)
+
+명예의전당 또는 뇽 갤러리에서 특정 뇽의 사진을 추가로 받을 수 있습니다.
+
+- **무료 더보기**: 1회 무료 제공 (`source = 'nyong_extra'`)
+- **광고 더보기**: 광고 시청 후 추가 수신 (`source = 'nyong_ad_extra'`)
+- 글로벌 일별 **2회** 제한 (`nyong_extra_usage` 테이블)
+
+> 광고는 Google AdMob (`react-native-google-mobile-ads`)으로 구현 (`lib/ads.ts`)
 
 ## 관리자 기능
 
@@ -195,17 +205,35 @@ supabase functions deploy send-daily-notifications
 
 | 테이블 | 설명 |
 |--------|------|
-| `profiles` | 사용자 프로필 (닉네임, 푸시 토큰, 방해금지 시간, 광고 보상 카운트) |
+| `profiles` | 사용자 프로필 (닉네임, 푸시 토큰, 방해금지 시간) |
 | `nyongs` | 뇽 ID 카드 (이름, 사진들, 특징 JSONB, CLIP 임베딩 VECTOR(512), 통계) |
-| `uploads` | 업로드된 사진 (이미지 URL, 업로더 ID, 뇽 ID, 태그) |
-| `deliveries` | 배송 큐 (업로드 ID, 발신자, 수신자, 상태, 뇽펀치 횟수) |
+| `uploads` | 업로드된 사진 (이미지 URL, 업로더 ID, 뇽 ID, 태그, content_status) |
+| `deliveries` | 배송 큐 (업로드 ID, 발신자, 수신자, 상태, 뇽펀치 횟수, source) |
+| `nyong_extra_usage` | 뇽별 한장 더 받기 글로벌 일별 카운트 (2회/day 제한) |
+| `content_reports` | 사용자 콘텐츠 신고 (3회→flagged, 5회→blocked 자동 처리) |
+| `app_config` | 앱 운영 설정 (강제 업데이트 최소 버전 등) |
+
+### deliveries.source 값
+
+| source | 설명 |
+|--------|------|
+| `scheduled` | 정기 배달 (Edge Function cron) |
+| `extra` | 오늘의 뇽 무료 더보기 |
+| `ad_extra` | 오늘의 뇽 광고 더보기 |
+| `nyong_extra` | 뇽별 무료 한장 더 받기 |
+| `nyong_ad_extra` | 뇽별 광고 한장 더 받기 |
+| `unlock_ad` | 잠든 뇽 광고 잠금해제 |
 
 ### RPC 함수
 
 | 함수 | 설명 |
 |------|------|
-| `get_top_nyongs(limit_count)` | 이번 달 뇽펀치 Top N 집계 |
-| `get_nyong_uploads(target_nyong_id)` | 특정 뇽의 업로드 + 뇽펀치 합산 |
+| `get_top_nyongs(p_period, limit_count)` | 뇽펀치 Top N 집계 (daily/weekly/monthly) |
+| `get_nyong_uploads(target_nyong_id, viewer_uuid)` | 특정 뇽의 업로드 + 뇽펀치 합산 |
+| `get_extra_delivery(receiver_uuid, yesterday_start, yesterday_end, p_source)` | 오늘의 뇽 더보기 배달 생성 |
+| `get_nyong_extra_delivery(receiver_uuid, target_nyong_id, p_source)` | 뇽별 한장 더 받기 배달 생성 |
+| `get_nyong_extra_status(receiver_uuid, target_nyong_id)` | 뇽별 더보기 상태 조회 (used_today, available_photos) |
+| `record_delivery_hits(p_delivery_id, p_hits)` | 뇽펀치 횟수 저장 + status 업데이트 |
 
 ### 마이그레이션
 
@@ -215,7 +243,17 @@ supabase functions deploy send-daily-notifications
 | `20260207000000_delivery_system.sql` | 배송 시스템 (deliveries) |
 | `20260207100000_extra_feature.sql` | 광고 보상 (extra_count) |
 | `20260209000000_nyong_profiles.sql` | 뇽 ID 카드 시스템 (nyongs, 임베딩, RLS) |
-| `20260211000000_hall_of_fame_rpc.sql` | 명예의 전당 RPC 함수 |
+| `20260211000000_hall_of_fame_rpc.sql` | 명예의전당 RPC 함수 |
+| `20260218000000_nyong_points.sql` | 뇽 포인트 시스템 |
+| `20260223000000_top_puncher_top3.sql` | 명예의전당 Top 3 |
+| `20260223100000_get_extra_delivery_rpc.sql` | 오늘의 뇽 더보기 RPC |
+| `20260226000000_nyong_extra_delivery.sql` | 뇽별 한장 더 받기 RPC + nyong_extra_usage 테이블 |
+| `20260227000000_add_content_status.sql` | 콘텐츠 상태 컬럼 |
+| `20260227100000_report_policy_and_auto_flag.sql` | 신고 정책 + 자동 플래그 트리거 |
+| `20260305000000_monthly_hits_filter.sql` | 명예의전당 기간 필터 (daily/weekly/monthly) |
+| `20260305200000_get_extra_delivery_source_param.sql` | 더보기 source 파라미터 추가 |
+| `20260305300000_get_nyong_extra_delivery_source_param.sql` | 뇽별 더보기 source 파라미터 추가 |
+| `20260305400000_app_config_force_update.sql` | 강제 업데이트 설정 테이블 |
 
 ### RLS 정책
 
@@ -236,19 +274,26 @@ nyong/
 │   │   ├── index.tsx            # 뇽 갤러리 (홈)
 │   │   ├── upload.tsx           # 뇽 보내기
 │   │   └── hall-of-fame.tsx     # 명예의 전당
-│   ├── _layout.tsx              # 루트 레이아웃
+│   ├── _layout.tsx              # 루트 레이아웃 (강제 업데이트 모달 포함)
 │   ├── notification.tsx         # 뇽펀치 화면
 │   ├── onboarding.tsx           # 로그인/회원가입
+│   ├── nickname-setup.tsx       # 닉네임 설정 (최초 가입 시)
 │   ├── settings.tsx             # 설정
 │   ├── admin.tsx                # 관리자 페이지
+│   ├── upload-calendar.tsx      # 업로드 캘린더 (관리자)
 │   ├── nyong-register.tsx       # 뇽 ID 카드 등록
+│   ├── nyong-id-card.tsx        # 뇽 ID 카드 상세
 │   └── nyong-gallery.tsx        # 뇽 개별 갤러리
 ├── components/
 │   ├── CatPaw.tsx               # 발바닥 아이콘
 │   ├── GradientText.tsx         # 그라데이션 텍스트
 │   ├── NotificationBanner.tsx   # 인앱 알림 배너
 │   ├── TimePicker.tsx           # 시간 선택 모달
-│   └── CalendarPicker.tsx       # 달력 선택 (관리자)
+│   ├── BirthdayPicker.tsx       # 생일 선택 모달
+│   ├── CalendarPicker.tsx       # 달력 선택 (관리자)
+│   ├── UploadCalendar.tsx       # 업로드 캘린더 컴포넌트
+│   ├── PinchableImage.tsx       # 핀치 줌 이미지 뷰어
+│   └── Toast.tsx                # 토스트 알림
 ├── contexts/
 │   └── AuthContext.tsx           # 인증, 알림, 테스트모드 상태 관리
 ├── lib/
@@ -284,11 +329,14 @@ yarn install
 # 개발 서버 실행
 yarn start
 
-# 프로덕션 빌드 (Android AAB)
-eas build --platform android --profile production
+# 프로덕션 빌드 (Android AAB) - 로컬 빌드 권장 (EAS Free 월 한도 소진 방지)
+export PATH="/Users/al01967928/.nvm/versions/node/v24.13.0/bin:$PATH"
+ANDROID_HOME=~/Library/Android/sdk eas build --local --platform android --profile production
 
-# Play Store 제출
-eas submit --platform android --latest
+# OTA 업데이트 (JS/에셋 변경 시, 네이티브 변경 없을 때)
+eas update --channel production --message "업데이트 내용"
+
+# Play Store 수동 업로드: Play Console → 내부 테스트 → AAB 파일 업로드
 ```
 
 | 항목 | 값 |
@@ -296,6 +344,22 @@ eas submit --platform android --latest
 | Package | `com.nyong.app` |
 | Bundle ID | `com.nyong.app` |
 | EAS Project | `b7354b39-b61c-4470-bbc5-f5fab6a0d32b` |
+
+### 강제 업데이트
+
+앱 시작 시 Supabase `app_config` 테이블의 `min_android_version_code`와 현재 설치된 versionCode를 비교합니다.
+현재 버전이 낮으면 플레이스토어로 이동하는 강제 업데이트 모달이 표시됩니다.
+
+```sql
+-- 특정 versionCode 이하 사용자에게 강제 업데이트 모달 표시
+-- 예: versionCode 30 이하를 강제 업데이트하려면 31로 설정
+UPDATE app_config SET min_android_version_code = 31 WHERE id = 1;
+
+-- 강제 업데이트 해제 (모든 버전 허용)
+UPDATE app_config SET min_android_version_code = 1 WHERE id = 1;
+```
+
+> iOS: 앱스토어 정식 출시 후 App Store ID 확보 시 `min_ios_build_number` 컬럼 추가 + `itms-apps://` 링크로 동일하게 구현
 
 ## 라이선스
 

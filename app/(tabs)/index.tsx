@@ -10,6 +10,7 @@ import {
   BackHandler,
   RefreshControl,
   Alert,
+  Modal,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -59,6 +60,7 @@ export default function GalleryScreen() {
   const [selectedNyongGroup, setSelectedNyongGroup] = useState<NyongGroup | null>(null);
   const [nyongExtraStatus, setNyongExtraStatus] = useState<{ usedToday: number; availablePhotos: number } | null>(null);
   const [isLoadingNyongExtra, setIsLoadingNyongExtra] = useState(false);
+  const [showProfilePhoto, setShowProfilePhoto] = useState(false);
   const PAGE_SIZE = 30;
 
   const handleReport = (uploadId: number) => {
@@ -313,7 +315,7 @@ export default function GalleryScreen() {
   useEffect(() => {
     if (selectedNyongGroup && sortMode === 'name') {
       const updated = groupedByNyong.find(g => g.nyongId === selectedNyongGroup.nyongId);
-      if (updated && updated.photoCount !== selectedNyongGroup.photoCount) {
+      if (updated) {
         setSelectedNyongGroup(updated);
       }
     }
@@ -397,6 +399,7 @@ export default function GalleryScreen() {
       const { data, error } = await supabase.rpc('get_nyong_extra_delivery', {
         receiver_uuid: session.user.id,
         target_nyong_id: selectedNyongGroup.nyongId,
+        p_source: isFree ? 'nyong_extra' : 'nyong_ad_extra',
       });
       if (error || !data || data.length === 0) {
         if (!error) setNyongExtraStatus(prev => prev ? { ...prev, availablePhotos: 0 } : null);
@@ -436,6 +439,7 @@ export default function GalleryScreen() {
               try {
                 const result = await showRewardedAd('unlock');
                 if (result.success && result.reward) {
+                  supabase.from('deliveries').update({ source: 'unlock_ad' }).eq('id', item.id).then(() => {});
                   router.push({
                     pathname: '/notification',
                     params: {
@@ -674,10 +678,25 @@ export default function GalleryScreen() {
           </View>
           {hits > 0 && (
             <View style={styles.fullscreenInfoContainer}>
+
               <Text style={styles.fullscreenPunchText}>
                 {hasTarget ? (
                   <>
-                    <Text style={styles.fullscreenTag}>{targetText}</Text>
+                    {nyongName && (
+                      <Text
+                        style={styles.fullscreenNyongName}
+                        onPress={() => {
+                          const nyongId = item.upload?.nyong?.id;
+                          if (!nyongId) return;
+                          setSelectedIndex(null);
+                          setPendingNyongId(nyongId);
+                          setSortMode('name');
+                        }}
+                      >
+                        {nyongName}
+                      </Text>
+                    )}
+                    {tag ? <Text style={styles.fullscreenTag}>{` #${tag}`}</Text> : null}
                     {`에게 ${hits}뇽펀치를 날렸어요!`}
                   </>
                 ) : (
@@ -855,7 +874,9 @@ export default function GalleryScreen() {
                 </View>
                 <View style={styles.subGalleryCard}>
                   {selectedNyongGroup.frontPhotoUrl && (
-                    <Image source={{ uri: selectedNyongGroup.frontPhotoUrl }} style={styles.subGalleryPhoto} />
+                    <TouchableOpacity activeOpacity={0.8} onPress={() => setShowProfilePhoto(true)}>
+                      <Image source={{ uri: selectedNyongGroup.frontPhotoUrl }} style={styles.subGalleryPhoto} />
+                    </TouchableOpacity>
                   )}
                   {selectedNyongGroup.nyongId && (
                     <TouchableOpacity
@@ -874,6 +895,18 @@ export default function GalleryScreen() {
                     </Text>
                   </View>
                 </View>
+                <Modal visible={showProfilePhoto} transparent animationType="fade" onRequestClose={() => setShowProfilePhoto(false)}>
+                  <TouchableOpacity style={styles.profileModal} activeOpacity={1} onPress={() => setShowProfilePhoto(false)}>
+                    <TouchableOpacity style={styles.profileCloseButton} onPress={() => setShowProfilePhoto(false)}>
+                      <Text style={styles.profileCloseText}>✕</Text>
+                    </TouchableOpacity>
+                    <Image
+                      source={{ uri: selectedNyongGroup.frontPhotoUrl }}
+                      style={styles.profileModalImage}
+                      contentFit="contain"
+                    />
+                  </TouchableOpacity>
+                </Modal>
               </View>
             ) : sortedItems.length > 0 ? (
               <View style={styles.sortBar}>
@@ -1239,6 +1272,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
+  fullscreenNyongName: {
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
   fullscreenTag: {
     color: colors.primary,
     fontWeight: '700',
@@ -1275,5 +1312,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255,255,255,0.7)',
     marginTop: 12,
+  },
+  profileModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileCloseButton: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    zIndex: 1,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileCloseText: {
+    color: colors.white,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  profileModalImage: {
+    width: width,
+    height: height,
   },
 });

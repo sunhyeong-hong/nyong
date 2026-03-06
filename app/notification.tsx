@@ -393,6 +393,9 @@ export default function NotificationScreen() {
     try {
       const result = await showRewardedAd('unlock');
       if (result.success && result.reward) {
+        if (deliveryId) {
+          supabase.from('deliveries').update({ source: 'unlock_ad' }).eq('id', deliveryId).then(() => {});
+        }
         setIsLocked(false);
         setCountdown(COUNTDOWN_TIME); // 카운트다운 10초 리셋
         timerBarAnim.setValue(1); // 타이머 바 리셋
@@ -435,6 +438,7 @@ export default function NotificationScreen() {
         receiver_uuid: session.user.id,
         p_yesterday_start: yesterdayStart,
         p_yesterday_end: yesterdayEnd,
+        p_source: isFree ? 'extra' : 'ad_extra',
       });
 
       if (extraError) {
@@ -483,6 +487,7 @@ export default function NotificationScreen() {
       const { data, error } = await supabase.rpc('get_nyong_extra_delivery', {
         receiver_uuid: session.user.id,
         target_nyong_id: nyongExtraId,
+        p_source: 'nyong_ad_extra',
       });
 
       if (error) {

@@ -83,6 +83,7 @@ export interface Delivery {
   delivered_at: string | null;
   received_at: string | null;
   hits: number;
+  source?: string;
   created_at: string;
   upload?: Upload;
 }
