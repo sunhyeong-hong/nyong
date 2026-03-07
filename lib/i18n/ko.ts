@@ -62,7 +62,7 @@ export const ko = {
     greeting: '오늘도 귀여운 우리 뇽들을\n뽐내달라냥!',
     // 뇽 미등록 상태
     noNyongTitle: '{nickname}님의 뇽이를 등록하고 뇽파민을 나눠보세요!',
-    noNyongDescription: '최초 뇽 등록 +10P, 사진 업로드 +1P\n50회 연속 업로드마다 추가 보너스\n명예의 전당에 등록되면 최대 +100P 지급',
+    noNyongDescription: '최초 뇽 등록 +10P, 사진 업로드 +1P\n30회 연속 업로드마다 추가 보너스\n명예의 전당에 등록되면 최대 +100P 지급',
     registerNyongButton: '뇽 ID 카드 등록하기',
     selectNyong: '누구를 보내볼까냥?',
     addNyong: '새 뇽 등록',
@@ -115,6 +115,7 @@ export const ko = {
     appTagline: '',
     appDescription: '하루 한 번 귀여움 과다\n뇽파민 충전하고 가라냥!',
     googleLogin: 'Google로 시작하기',
+    appleLogin: 'Apple로 시작하기',
     emailLogin: '이메일로 로그인',
     loginTitle: '로그인 / 회원가입',
     nicknameTitle: '닉네임을 알려주세요',
@@ -139,6 +140,7 @@ export const ko = {
     errorInvalidEmail: '올바른 이메일 형식을 입력해주세요.',
     errorInvalidPassword: '비밀번호는 숫자, 영문, 특수문자 중 2가지 이상 조합으로 5~20자여야 해요.',
     errorGoogleLogin: 'Google 로그인에 실패했어요.',
+    errorAppleLogin: 'Apple 로그인에 실패했어요.',
     errorSignup: '회원가입에 실패했어요.',
     errorAlreadyRegistered: '이미 가입된 이메일이에요. 로그인해주세요.',
     errorLogin: '로그인에 실패했어요.',
@@ -179,6 +181,12 @@ export const ko = {
     errorEmptyNickname: '닉네임을 입력해주세요.',
     errorSaveFailed: '저장에 실패했어요.',
     errorSessionExpired: '세션이 만료되었습니다. 다시 로그인해주세요.',
+    bgmSection: '뇽파민 배경음악',
+    bgmToggle: '앱 배경음악',
+    bgmDescription: '뇽파민의 귀엽고 감미로운 노래들을 들어보세요',
+    track1: '뇽파민',
+    track2: '분홍빛 젤리',
+    track3: '말랑한 꿈 조각',
   },
 
   // 푸시 알림
@@ -272,7 +280,7 @@ export const ko = {
     sectionTitle: '뇽 포인트',
     balance: '보유 포인트',
     currentPoints: '{count} P',
-    description: '최초 뇽 등록 +10P, 사진 업로드 +1P\n50회 연속 업로드마다 추가 보너스!',
+    description: '최초 뇽 등록 +10P, 사진 업로드 +1P\n30회 연속 업로드마다 추가 보너스!',
     rewardHighlight: '100P = 프리미엄 차오츄르 교환권!',
     redeemButton: '프리미엄 차오츄르 교환 (100P)',
     redeemTitle: '프리미엄 차오츄르 교환',
@@ -313,6 +321,8 @@ export const ko = {
   // 업로드 달력
   calendar: {
     monthlyCount: '이번 달 {count}회 업로드',
+    streakCount: '연속 {count}일 업로드 중',
+    noStreak: '오늘 업로드하고 연속 기록을 시작하세요!',
     yearMonth: '{year}년 {month}월',
     sun: '일',
     mon: '월',

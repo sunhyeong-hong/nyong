@@ -93,6 +93,7 @@ export default function NyongGalleryScreen() {
   const [isPinching, setIsPinching] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [viewerHeight, setViewerHeight] = useState(height);
+  const fullscreenListRef = useRef<FlatList>(null);
   const [topPunchers, setTopPunchers] = useState<Record<number, { nickname: string; totalHits: number }[]>>({});
   const [showProfilePhoto, setShowProfilePhoto] = useState(false);
 
@@ -146,6 +147,15 @@ export default function NyongGalleryScreen() {
     return () => handler.remove();
   }, [selectedIndex]);
 
+  // viewerHeight가 확정된 후 선택한 사진으로 스크롤
+  useEffect(() => {
+    if (selectedIndex !== null && viewerHeight > 0) {
+      requestAnimationFrame(() => {
+        fullscreenListRef.current?.scrollToIndex({ index: selectedIndex, animated: false });
+      });
+    }
+  }, [selectedIndex, viewerHeight]);
+
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
@@ -165,7 +175,6 @@ export default function NyongGalleryScreen() {
         .single();
 
       if (nyongError) throw nyongError;
-      setNyong(nyongData);
 
       // 해당 뇽의 업로드 사진들 + hits 합산 (RPC로 RLS 우회)
       const { data: uploadsData, error: uploadsError } = await supabase.rpc(
@@ -237,9 +246,13 @@ export default function NyongGalleryScreen() {
     return (
       <View
         style={styles.fullscreenContainer}
-        onLayout={(e) => setViewerHeight(e.nativeEvent.layout.height)}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          setViewerHeight(h);
+        }}
       >
         <FlatList
+          ref={fullscreenListRef}
           data={uploads}
           scrollEnabled={!isPinching}
           renderItem={({ item }) => (
@@ -270,7 +283,6 @@ export default function NyongGalleryScreen() {
           keyExtractor={(item) => `fs-${item.id}`}
           pagingEnabled
           showsVerticalScrollIndicator={false}
-          initialScrollIndex={selectedIndex}
           getItemLayout={(_, index) => ({
             length: viewerHeight,
             offset: viewerHeight * index,

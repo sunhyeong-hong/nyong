@@ -416,7 +416,7 @@ export default function UploadScreen() {
       setAlreadyUploadedToday(true);
 
       if (milestoneBonus && milestoneBonus > 0) {
-        const totalUploads = Math.round((milestoneBonus / 10) * 50);
+        const totalUploads = Math.round((milestoneBonus / 10) * 30);
         setTimeout(() => {
           showToast(format(t().points.milestoneMessage, { count: totalUploads, bonus: milestoneBonus }));
         }, 2200);

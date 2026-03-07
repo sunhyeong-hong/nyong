@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from '../contexts/AuthContext';
+import { BgmProvider } from '../contexts/BgmContext';
 import { useEffect, useState } from 'react';
 import { Linking, Modal, NativeModules, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Constants from 'expo-constants';
@@ -67,6 +68,7 @@ export default function RootLayout() {
         </View>
       </Modal>
       <AuthProvider>
+      <BgmProvider>
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -114,6 +116,7 @@ export default function RootLayout() {
           }}
         />
       </Stack>
+      </BgmProvider>
       </AuthProvider>
     </SafeAreaProvider>
     </GestureHandlerRootView>

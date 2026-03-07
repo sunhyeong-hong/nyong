@@ -27,6 +27,7 @@ import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MOCK_DELIVERIES } from '../lib/mockData';
+import { useBgm } from '../contexts/BgmContext';
 
 const MUSIC_PREF_KEY = 'nyong_bgmusic_enabled';
 
@@ -98,6 +99,7 @@ export default function NotificationScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ catId?: string; catImage?: string; preUnlocked?: string; nyongExtraId?: string; nyongExtraName?: string }>();
   const { addReceivedCat, isTestMode, session, profile, setPendingOpenNyongId } = useAuth();
+  const { pauseBgm, resumeBgm } = useBgm();
 
   // catId는 이제 delivery.id로 사용됨
   const deliveryId = params.catId ? parseInt(params.catId, 10) : null;
@@ -160,6 +162,12 @@ export default function NotificationScreen() {
   const [isMusicOn, setIsMusicOn] = useState(true);
   const musicStarted = useRef(false);
   const shouldAutoPlayMusic = useRef(false); // 타이머 시작 시 true
+
+  // 앱 BGM 일시정지 (뇽펀치 자체 음악 사용)
+  useEffect(() => {
+    pauseBgm();
+    return () => resumeBgm();
+  }, []);
 
   // Android 뒤로가기: 펀치 중엔 차단, 힌트/완료 상태에서만 종료 허용
   useEffect(() => {

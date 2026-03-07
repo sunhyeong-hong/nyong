@@ -16,36 +16,78 @@ export default function UploadCalendar({ userId }: UploadCalendarProps) {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [uploadMap, setUploadMap] = useState<Map<number, number>>(new Map());
+  const [streak, setStreak] = useState(0);
 
   const fetchUploadDays = async () => {
     const start = new Date(year, month, 1).toISOString();
     const end = new Date(year, month + 1, 1).toISOString();
 
     const { data } = await supabase
-      .from('uploads')
-      .select('uploaded_at')
+      .from('point_logs')
+      .select('points, created_at')
       .eq('user_id', userId)
-      .gte('uploaded_at', start)
-      .lt('uploaded_at', end)
-      .lte('uploaded_at', new Date().toISOString());
+      .gt('points', 0)
+      .gte('created_at', start)
+      .lt('created_at', end)
+      .lte('created_at', new Date().toISOString());
 
     if (data) {
       const map = new Map<number, number>();
-      data.forEach((u) => {
-        const day = new Date(u.uploaded_at).getDate();
-        map.set(day, (map.get(day) || 0) + 1);
+      data.forEach((row) => {
+        const day = new Date(row.created_at).getDate();
+        map.set(day, (map.get(day) || 0) + row.points);
       });
       setUploadMap(map);
     }
+  };
+
+  const fetchStreak = async () => {
+    // Fetch recent uploads ordered by date descending to calculate streak
+    const { data } = await supabase
+      .from('uploads')
+      .select('uploaded_at')
+      .eq('user_id', userId)
+      .lte('uploaded_at', new Date().toISOString())
+      .order('uploaded_at', { ascending: false })
+      .limit(500);
+
+    if (!data || data.length === 0) { setStreak(0); return; }
+
+    // Collect unique upload dates (YYYY-MM-DD)
+    const uploadDates = new Set<string>();
+    data.forEach((u) => {
+      const d = new Date(u.uploaded_at);
+      uploadDates.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    });
+
+    // Count consecutive days backwards from today
+    let count = 0;
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    while (true) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+      if (uploadDates.has(key)) {
+        count++;
+        cursor.setDate(cursor.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    setStreak(count);
   };
 
   useEffect(() => {
     fetchUploadDays();
   }, [year, month]);
 
+  useEffect(() => {
+    fetchStreak();
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       fetchUploadDays();
+      fetchStreak();
     }, [year, month])
   );
 
@@ -86,7 +128,6 @@ export default function UploadCalendar({ userId }: UploadCalendarProps) {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   const monthLabel = format(t().calendar.yearMonth, { year, month: month + 1 });
-  const totalUploads = Array.from(uploadMap.values()).reduce((a, b) => a + b, 0);
 
   return (
     <View style={styles.container}>
@@ -150,7 +191,9 @@ export default function UploadCalendar({ userId }: UploadCalendarProps) {
       </View>
 
       <Text style={styles.countText}>
-        {format(t().calendar.monthlyCount, { count: totalUploads })}
+        {streak > 0
+          ? format(t().calendar.streakCount, { count: streak })
+          : t().calendar.noStreak}
       </Text>
     </View>
   );

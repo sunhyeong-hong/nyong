@@ -64,7 +64,7 @@ export const en: Translations = {
     greeting: 'Show off our cute Nyongs\ntoday, meow!',
     // No Nyong state
     noNyongTitle: "Register {nickname}'s Nyong and share the Nyongpamine!",
-    noNyongDescription: 'First Nyong registration +10P, Photo upload +1P\nExtra bonus every 50 consecutive uploads.\nUp to +100P for Hall of Fame entry',
+    noNyongDescription: 'First Nyong registration +10P, Photo upload +1P\nExtra bonus every 30 consecutive uploads.\nUp to +100P for Hall of Fame entry',
     registerNyongButton: 'Register Nyong ID Card',
     selectNyong: 'Who shall we send today, meow?',
     addNyong: 'New Nyong',
@@ -117,6 +117,7 @@ export const en: Translations = {
     appTagline: 'Random Nyong Alarm',
     appDescription: 'Once a day, at a random time,\na cute Nyong will visit you, meow!',
     googleLogin: 'Continue with Google',
+    appleLogin: 'Continue with Apple',
     emailLogin: 'Login with Email',
     loginTitle: 'Login / Sign Up',
     nicknameTitle: 'Set your nickname',
@@ -141,6 +142,7 @@ export const en: Translations = {
     errorInvalidEmail: 'Please enter a valid email address.',
     errorInvalidPassword: 'Password must be 5-20 characters with at least 2 of: letters, numbers, special characters.',
     errorGoogleLogin: 'Google login failed.',
+    errorAppleLogin: 'Apple login failed.',
     errorSignup: 'Sign up failed.',
     errorAlreadyRegistered: 'This email is already registered. Please log in.',
     errorLogin: 'Login failed.',
@@ -181,6 +183,12 @@ export const en: Translations = {
     errorEmptyNickname: 'Please enter a nickname.',
     errorSaveFailed: 'Failed to save.',
     errorSessionExpired: 'Session expired. Please log in again.',
+    bgmSection: 'Nyongpamine BGM',
+    bgmToggle: 'App BGM',
+    bgmDescription: 'Listen to cute and sweet Nyongpamine songs',
+    track1: 'Nyongpamine',
+    track2: 'Pink Jelly',
+    track3: 'Soft Dream Piece',
   },
 
   // Push Notifications
@@ -274,7 +282,7 @@ export const en: Translations = {
     sectionTitle: 'Nyong Points',
     balance: 'Balance',
     currentPoints: '{count} P',
-    description: 'First Nyong +10P, Upload Photo +1P\nBonus every 50 uploads!',
+    description: 'First Nyong +10P, Upload Photo +1P\nBonus every 30 uploads!',
     rewardHighlight: '100P = Premium Chao Churu Gifticon!',
     redeemButton: 'Redeem Premium Chao Churu (100P)',
     redeemTitle: 'Redeem Premium Chao Churu',
@@ -315,6 +323,8 @@ export const en: Translations = {
   // Upload Calendar
   calendar: {
     monthlyCount: '{count} uploads this month',
+    streakCount: '{count}-day upload streak',
+    noStreak: 'Upload today to start your streak!',
     yearMonth: '{month} {year}',
     sun: 'Sun',
     mon: 'Mon',

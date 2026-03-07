@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import * as Notifications from 'expo-notifications';
 import { registerForPushNotifications } from '../../lib/notifications';
 import { MOCK_DELIVERIES } from '../../lib/mockData';
 import { PinchableImage } from '../../components/PinchableImage';
+import { useBgm } from '../../contexts/BgmContext';
 
 const { width, height } = Dimensions.get('window');
 const GRID_PADDING = 12;
@@ -46,6 +47,7 @@ export default function GalleryScreen() {
   const { openNyongId } = useLocalSearchParams<{ openNyongId?: string }>();
   const insets = useSafeAreaInsets();
   const { session, profile, isLoading, isTestMode, testReceivedCats, incomingCat, clearIncomingCat, pendingNotification, clearPendingNotification, pendingOpenNyongId, setPendingOpenNyongId } = useAuth();
+  const { showPromo, dismissPromo } = useBgm();
   const [items, setItems] = useState<Delivery[]>([]);
   const [isPinching, setIsPinching] = useState(false);
   const [isLoadingCats, setIsLoadingCats] = useState(true);
@@ -57,6 +59,7 @@ export default function GalleryScreen() {
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [notifGranted, setNotifGranted] = useState(true);
   const [viewerHeight, setViewerHeight] = useState(height);
+  const fullscreenListRef = useRef<FlatList>(null);
   const [selectedNyongGroup, setSelectedNyongGroup] = useState<NyongGroup | null>(null);
   const [nyongExtraStatus, setNyongExtraStatus] = useState<{ usedToday: number; availablePhotos: number } | null>(null);
   const [isLoadingNyongExtra, setIsLoadingNyongExtra] = useState(false);
@@ -244,6 +247,14 @@ export default function GalleryScreen() {
   }, [selectedIndex]);
 
   useEffect(() => {
+    if (selectedIndex !== null && viewerHeight > 0) {
+      requestAnimationFrame(() => {
+        fullscreenListRef.current?.scrollToIndex({ index: selectedIndex, animated: false });
+      });
+    }
+  }, [selectedIndex, viewerHeight]);
+
+  useEffect(() => {
     if (selectedNyongGroup === null) return;
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
       setSelectedNyongGroup(null);
@@ -381,6 +392,7 @@ export default function GalleryScreen() {
     if (item.status === 'received') return false;
     if (item.received_at) return false;
     if (!item.delivered_at) return false;
+    if (item.source === 'unlock_ad') return false;
     const deliveredTime = new Date(item.delivered_at).getTime();
     return Date.now() - deliveredTime > 60 * 60 * 1000;
   };
@@ -726,13 +738,13 @@ export default function GalleryScreen() {
         onLayout={(e) => setViewerHeight(e.nativeEvent.layout.height)}
       >
         <FlatList
+          ref={fullscreenListRef}
           data={fullscreenData}
           renderItem={renderFullscreenItem}
           keyExtractor={(item) => `fs-${item.id}`}
           pagingEnabled
           scrollEnabled={!isPinching}
           showsVerticalScrollIndicator={false}
-          initialScrollIndex={selectedIndex}
           getItemLayout={(_, index) => ({
             length: viewerHeight,
             offset: viewerHeight * index,
@@ -926,11 +938,53 @@ export default function GalleryScreen() {
           }
         />
       )}
+      {showPromo && (
+        <View style={styles.promoBanner}>
+          <Text style={styles.promoText}>
+            뇽파민 BGM이 출시되었어요!{' '}
+            <Text style={styles.promoLink} onPress={() => { dismissPromo(); router.push('/settings'); }}>설정</Text>
+            에서 배경음악을 ON 해보세요
+          </Text>
+          <TouchableOpacity onPress={dismissPromo} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.promoClose}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  promoBanner: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(252, 228, 236, 0.95)',
+    borderRadius: radius.xl,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  promoText: {
+    flex: 1,
+    color: colors.primaryDark,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  promoLink: {
+    textDecorationLine: 'underline',
+    fontWeight: '700',
+  },
+  promoClose: {
+    color: colors.primaryDark,
+    fontSize: 16,
+    fontWeight: '700',
+    marginLeft: 12,
+    opacity: 0.8,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,

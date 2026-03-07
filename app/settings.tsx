@@ -21,6 +21,7 @@ import { TimePicker } from '../components/TimePicker';
 import { Toast } from '../components/Toast';
 import { t, format } from '../lib/i18n';
 import { sendPushNotification } from '../lib/notifications';
+import { useBgm, PLAYLIST } from '../contexts/BgmContext';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -29,6 +30,7 @@ export default function SettingsScreen() {
   const { session, profile, signOut, deleteAccount, refreshProfile, sendTestNotification, isTestMode } = useAuth();
   const insets = useSafeAreaInsets();
   const isAdmin = profile?.is_admin || profile?.nickname === 'admin';
+  const { isBgmOn, setBgmOn, currentTrackIndex, enabledTracks, toggleTrack, selectTrack } = useBgm();
 
   const [nickname, setNickname] = useState('');
   const [useExclusion, setUseExclusion] = useState(false);
@@ -213,6 +215,53 @@ export default function SettingsScreen() {
             </View>
           </View>
         )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t().settings.bgmSection}</Text>
+        <View style={styles.switchRow}>
+          <View>
+            <Text style={styles.switchDescription}>
+              {t().settings.bgmDescription}
+            </Text>
+          </View>
+          <Switch
+            value={isBgmOn}
+            onValueChange={setBgmOn}
+            trackColor={{ false: colors.switchTrackOff, true: colors.primaryLight }}
+            thumbColor={isBgmOn ? colors.primary : colors.switchThumbOff}
+          />
+        </View>
+        <View style={styles.playlistContainer}>
+          {PLAYLIST.map((track, index) => {
+            const isPlaying = isBgmOn && currentTrackIndex === index;
+            const isEnabled = enabledTracks[index];
+            const isDisabled = !isBgmOn;
+            return (
+              <View key={index} style={styles.trackItem}>
+                <TouchableOpacity onPress={() => toggleTrack(index)} hitSlop={8} disabled={isDisabled}>
+                  <View style={[styles.checkbox, isEnabled && !isDisabled && styles.checkboxActive, isEnabled && isDisabled && styles.checkboxDisabled]}>
+                    {isEnabled && <Text style={[styles.checkmark, isDisabled && styles.checkmarkDisabled]}>✓</Text>}
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.trackTitleArea}
+                  onPress={() => selectTrack(index)}
+                  activeOpacity={0.6}
+                  disabled={isDisabled}
+                >
+                  <Text style={[styles.trackTitle, (isDisabled || !isEnabled) && styles.trackTitleDisabled]}>
+                    {t().settings[track.titleKey]}
+                  </Text>
+                  {isPlaying && <Text style={styles.nowPlaying}>♪</Text>}
+                </TouchableOpacity>
+                <Text style={[styles.trackDuration, (isDisabled || !isEnabled) && styles.trackDurationDisabled]}>
+                  {track.duration}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
       </View>
 
       {/* 뇽 포인트 */}
@@ -482,6 +531,68 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     fontWeight: '600',
+  },
+  playlistContainer: {
+    marginTop: 14,
+    gap: 4,
+  },
+  trackItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  trackTitleArea: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 10,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  checkboxDisabled: {
+    backgroundColor: colors.textDisabled,
+    borderColor: colors.textDisabled,
+  },
+  checkmark: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: 'bold',
+    marginTop: -1,
+  },
+  checkmarkDisabled: {
+    color: colors.white,
+  },
+  trackTitle: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  trackTitleDisabled: {
+    color: colors.textDisabled,
+  },
+  nowPlaying: {
+    fontSize: 13,
+    color: colors.primary,
+  },
+  trackDuration: {
+    fontSize: 12,
+    color: colors.textTertiary,
+  },
+  trackDurationDisabled: {
+    color: colors.textDisabled,
   },
   // 뇽 포인트
   pointsRow: {

@@ -15,6 +15,7 @@ import {
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, radius } from '../lib/theme';
@@ -129,6 +130,40 @@ export default function OnboardingScreen() {
     } catch (error: any) {
       console.error('Google login error:', error);
       Alert.alert(t().common.error, error.message || t().onboarding.errorGoogleLogin);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    if (!agreedToPrivacy) {
+      Alert.alert(t().common.error, t().onboarding.errorPrivacyRequired);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        throw new Error('No identity token received');
+      }
+
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken,
+      });
+
+      if (error) throw error;
+      router.replace('/(tabs)');
+    } catch (error: any) {
+      if (error.code === 'ERR_REQUEST_CANCELED') return;
+      console.error('Apple login error:', error);
+      Alert.alert(t().common.error, error.message || t().onboarding.errorAppleLogin);
     } finally {
       setIsLoading(false);
     }
@@ -305,6 +340,16 @@ export default function OnboardingScreen() {
               <Text style={styles.googleButtonText}>{t().onboarding.googleLogin}</Text>
             )}
           </TouchableOpacity>
+
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity
+              style={[styles.appleButton, !agreedToPrivacy && styles.buttonDisabled]}
+              onPress={handleAppleSignIn}
+              disabled={isLoading || !agreedToPrivacy}
+            >
+              <Text style={styles.appleButtonText}>{t().onboarding.appleLogin}</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             onPress={() => {
@@ -529,6 +574,17 @@ const styles = StyleSheet.create({
   },
   googleButtonText: {
     color: colors.white,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  appleButton: {
+    backgroundColor: '#000',
+    paddingVertical: 16,
+    borderRadius: radius.xl,
+    alignItems: 'center',
+  },
+  appleButtonText: {
+    color: '#fff',
     fontSize: 18,
     fontWeight: '600',
   },

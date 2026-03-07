@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
@@ -79,7 +80,9 @@ export default function UploadCalendarScreen() {
       <UploadCalendar userId={session.user.id} />
 
       <Text style={styles.description}>{t().points.description}</Text>
-      <Text style={styles.rewardHighlight}>{t().points.rewardHighlight}</Text>
+      <TouchableOpacity onPress={() => Linking.openURL('https://link.coupang.com/a/dY2W5D')}>
+        <Text style={styles.rewardHighlight}>{t().points.rewardHighlight}</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={[styles.redeemButton, !canRedeem && styles.redeemButtonDisabled]}
@@ -185,6 +188,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
     textAlign: 'center',
     marginTop: 12,
+    textDecorationLine: 'underline' as const,
   },
   redeemButton: {
     backgroundColor: colors.primary,
