@@ -322,44 +322,101 @@ nyong/
 
 ## 빌드 및 배포
 
-```bash
-# 의존성 설치
-yarn install
-
-# 개발 서버 실행
-yarn start
-
-# 프로덕션 빌드 (Android AAB) - 로컬 빌드 권장 (EAS Free 월 한도 소진 방지)
-export PATH="/Users/al01967928/.nvm/versions/node/v24.13.0/bin:$PATH"
-ANDROID_HOME=~/Library/Android/sdk eas build --local --platform android --profile production
-
-# OTA 업데이트 (JS/에셋 변경 시, 네이티브 변경 없을 때)
-eas update --channel production --message "업데이트 내용"
-
-# Play Store 수동 업로드: Play Console → 내부 테스트 → AAB 파일 업로드
-```
-
 | 항목 | 값 |
 |------|-----|
 | Package | `com.nyong.app` |
 | Bundle ID | `com.nyong.app` |
 | EAS Project | `b7354b39-b61c-4470-bbc5-f5fab6a0d32b` |
+| ASC App ID | `6759514657` |
 
-### 강제 업데이트
+### 1. 버전 업데이트
 
-앱 시작 시 Supabase `app_config` 테이블의 `min_android_version_code`와 현재 설치된 versionCode를 비교합니다.
+네이티브 변경(새 에셋, 네이티브 모듈 등)이 있으면 `app.json`에서 버전을 올려야 합니다.
+
+```jsonc
+// app.json
+{
+  "version": "1.1.0",           // runtimeVersion 결정 (OTA 호환성 기준)
+  "ios": { "buildNumber": "5" },
+  "android": { "versionCode": 30 }
+}
+```
+
+- `version`: runtimeVersion policy가 `appVersion`이므로, 이 값이 바뀌면 새 네이티브 빌드 필수
+- `versionCode`: Play Store에 올린 최대값보다 반드시 높아야 함
+- `buildNumber`: App Store Connect에 올린 최대값보다 높아야 함
+
+### 2. Android 빌드 (로컬)
+
+EAS Free 월간 빌드 한도가 있으므로 로컬 빌드 권장.
+
+```bash
+export PATH="/Users/al01967928/.nvm/versions/node/v24.13.0/bin:$PATH"
+ANDROID_HOME=~/Library/Android/sdk eas build --local --platform android --profile production
+```
+
+빌드 완료 시 프로젝트 루트에 `build-{timestamp}.aab` 파일이 생성됩니다.
+
+**Play Console 업로드:**
+1. [Play Console](https://play.google.com/console) → 앱 선택
+2. 프로덕션 (또는 내부 테스트) → 새 버전 만들기
+3. `.aab` 파일 업로드 → 검토 후 출시
+
+### 3. iOS 빌드 (EAS 리모트)
+
+```bash
+eas build --platform ios --profile production
+```
+
+- Apple 계정 로그인이 필요하므로 **터미널에서 직접 실행** (Claude Code에서는 stdin 미지원)
+- 빌드 완료 후 `.ipa`가 EAS에 업로드됨
+
+### 4. iOS 제출 (App Store Connect)
+
+```bash
+eas submit --platform ios --latest --profile production
+```
+
+- `eas.json`에 `ascAppId: 6759514657` 설정됨
+- 제출 후 Apple 처리 5~10분 → TestFlight에서 확인 가능
+- [App Store Connect](https://appstoreconnect.apple.com/apps/6759514657/testflight/ios)
+
+### 5. OTA 업데이트
+
+JS/에셋만 변경되고 네이티브 변경이 없을 때 (같은 `version` 내에서):
+
+```bash
+eas update --channel production --message "업데이트 내용"
+```
+
+### 6. 강제 업데이트 (DB)
+
+앱 시작 시 `app_config.min_android_version_code`와 현재 versionCode를 비교합니다.
 현재 버전이 낮으면 플레이스토어로 이동하는 강제 업데이트 모달이 표시됩니다.
 
+**스토어 배포 완료 후** DB를 업데이트하여 기존 사용자에게 업데이트를 유도합니다:
+
 ```sql
--- 특정 versionCode 이하 사용자에게 강제 업데이트 모달 표시
--- 예: versionCode 30 이하를 강제 업데이트하려면 31로 설정
-UPDATE app_config SET min_android_version_code = 31 WHERE id = 1;
+-- 사용자들이 versionCode 30으로 업데이트하도록 강제
+UPDATE app_config SET min_android_version_code = 30 WHERE id = 1;
 
 -- 강제 업데이트 해제 (모든 버전 허용)
 UPDATE app_config SET min_android_version_code = 1 WHERE id = 1;
 ```
 
-> iOS: 앱스토어 정식 출시 후 App Store ID 확보 시 `min_ios_build_number` 컬럼 추가 + `itms-apps://` 링크로 동일하게 구현
+> iOS: 앱스토어 정식 출시 후 `min_ios_build_number` 컬럼 추가 + `itms-apps://` 링크로 동일하게 구현 예정
+
+### 전체 배포 플로우 요약
+
+```
+1. app.json 버전 업데이트 (version, versionCode, buildNumber)
+2. git commit
+3. Android 로컬 빌드 → .aab 생성
+4. iOS EAS 리모트 빌드 (터미널) → .ipa 생성
+5. iOS 제출: eas submit --platform ios --latest
+6. Android 업로드: Play Console에 .aab 수동 업로드
+7. 양쪽 스토어 배포 확인 후 DB 업데이트: UPDATE app_config SET min_android_version_code = N
+```
 
 ## 라이선스
 
