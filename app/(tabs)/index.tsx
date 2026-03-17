@@ -62,6 +62,7 @@ export default function GalleryScreen() {
   const fullscreenListRef = useRef<FlatList>(null);
   const [selectedNyongGroup, setSelectedNyongGroup] = useState<NyongGroup | null>(null);
   const [nyongExtraStatus, setNyongExtraStatus] = useState<{ usedToday: number; availablePhotos: number } | null>(null);
+  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
   const [isLoadingNyongExtra, setIsLoadingNyongExtra] = useState(false);
   const [showProfilePhoto, setShowProfilePhoto] = useState(false);
   const PAGE_SIZE = 30;
@@ -99,6 +100,51 @@ export default function GalleryScreen() {
     );
   };
 
+  const handleBlock = (uploaderId: string, uploadId: number) => {
+    Alert.alert(
+      t().block.confirmTitle,
+      t().block.confirmMessage,
+      [
+        {
+          text: t().block.confirm,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await supabase.from('user_blocks').insert({
+                blocker_id: session?.user?.id,
+                blocked_id: uploaderId,
+              });
+              await supabase.from('content_reports').insert({
+                reporter_id: session?.user?.id,
+                target_type: 'upload',
+                target_id: uploadId,
+                reason: 'block',
+              });
+              setBlockedUserIds((prev) => [...prev, uploaderId]);
+              setItems((prev) => prev.filter((item) => item.upload?.user_id !== uploaderId));
+              Alert.alert('', t().block.success);
+            } catch {
+              Alert.alert('', t().block.error);
+            }
+          },
+        },
+        { text: t().common.cancel, style: 'cancel' },
+      ]
+    );
+  };
+
+  const handleLongPress = (uploadId: number, uploaderId: string) => {
+    Alert.alert(
+      t().block.menuTitle,
+      undefined,
+      [
+        { text: t().block.report, onPress: () => handleReport(uploadId) },
+        { text: t().block.block, onPress: () => handleBlock(uploaderId, uploadId) },
+        { text: t().common.cancel, style: 'cancel' },
+      ]
+    );
+  };
+
   useEffect(() => {
     if (!isLoading && !session && !isTestMode) {
       router.replace('/onboarding');
@@ -109,6 +155,17 @@ export default function GalleryScreen() {
       return;
     }
   }, [session, profile, isLoading, isTestMode]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    supabase
+      .from('user_blocks')
+      .select('blocked_id')
+      .eq('blocker_id', session.user.id)
+      .then(({ data }) => {
+        if (data) setBlockedUserIds(data.map((r) => r.blocked_id));
+      });
+  }, [session?.user?.id]);
 
   // 앱이 완전히 종료된 상태에서 알림 탭으로 실행된 경우
   // AuthContext에서 pendingNotification을 설정하고, 여기서 네비게이터가 준비된 후 이동
@@ -185,12 +242,13 @@ export default function GalleryScreen() {
         .in('status', ['delivered', 'received'])
         .order('delivered_at', { ascending: false })
         .range(0, PAGE_SIZE - 1);
-      setItems(data || []);
+      const filtered = (data || []).filter((item) => !blockedUserIds.includes(item.upload?.user_id));
+      setItems(filtered);
       setHasMore((data?.length ?? 0) === PAGE_SIZE);
     } finally {
       setIsRefreshing(false);
     }
-  }, [session, isTestMode]);
+  }, [session, isTestMode, blockedUserIds]);
 
   const fetchDeliveries = async () => {
     setIsLoadingCats(true);
@@ -203,7 +261,8 @@ export default function GalleryScreen() {
         .order('delivered_at', { ascending: false })
         .range(0, PAGE_SIZE - 1);
 
-      setItems(data || []);
+      const filtered = (data || []).filter((item) => !blockedUserIds.includes(item.upload?.user_id));
+      setItems(filtered);
       setHasMore((data?.length ?? 0) === PAGE_SIZE);
     } catch {
       // silent
@@ -543,7 +602,7 @@ export default function GalleryScreen() {
       <TouchableOpacity
         style={styles.imageContainer}
         onPress={() => handleItemPress(item, index)}
-        onLongPress={() => item.upload?.id && handleReport(item.upload.id)}
+        onLongPress={() => item.upload?.id && item.upload?.user_id && handleLongPress(item.upload.id, item.upload.user_id)}
         delayLongPress={500}
       >
         <Image

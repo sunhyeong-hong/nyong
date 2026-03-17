@@ -348,4 +348,14 @@ export const en: Translations = {
     success: 'Report submitted',
     error: 'Failed to submit report. Please try again.',
   },
+  block: {
+    menuTitle: 'What would you like to do?',
+    report: 'Report',
+    block: 'Block user',
+    confirmTitle: 'Block this user?',
+    confirmMessage: "You won't see this user's photos anymore.",
+    confirm: 'Block',
+    success: 'User blocked',
+    error: 'Failed to block user. Please try again.',
+  },
 };

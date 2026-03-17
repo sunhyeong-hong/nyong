@@ -130,6 +130,50 @@ export default function NyongGalleryScreen() {
     );
   };
 
+  const handleBlock = (uploaderId: string, uploadId: number) => {
+    Alert.alert(
+      t().block.confirmTitle,
+      t().block.confirmMessage,
+      [
+        {
+          text: t().block.confirm,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await supabase.from('user_blocks').insert({
+                blocker_id: session?.user?.id,
+                blocked_id: uploaderId,
+              });
+              await supabase.from('content_reports').insert({
+                reporter_id: session?.user?.id,
+                target_type: 'upload',
+                target_id: uploadId,
+                reason: 'block',
+              });
+              setUploads((prev) => prev.filter((u) => u.user_id !== uploaderId));
+              Alert.alert('', t().block.success);
+            } catch {
+              Alert.alert('', t().block.error);
+            }
+          },
+        },
+        { text: t().common.cancel, style: 'cancel' },
+      ]
+    );
+  };
+
+  const handleLongPress = (uploadId: number, uploaderId: string) => {
+    Alert.alert(
+      t().block.menuTitle,
+      undefined,
+      [
+        { text: t().block.report, onPress: () => handleReport(uploadId) },
+        { text: t().block.block, onPress: () => handleBlock(uploaderId, uploadId) },
+        { text: t().common.cancel, style: 'cancel' },
+      ]
+    );
+  };
+
   useFocusEffect(
     useCallback(() => {
       if (nyongId) {
@@ -224,7 +268,7 @@ export default function NyongGalleryScreen() {
     <TouchableOpacity
       style={styles.photoItem}
       onPress={() => setSelectedIndex(index)}
-      onLongPress={() => handleReport(item.id)}
+      onLongPress={() => handleLongPress(item.id, item.user_id)}
       delayLongPress={500}
     >
       <Image

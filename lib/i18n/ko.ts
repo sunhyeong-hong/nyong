@@ -346,6 +346,16 @@ export const ko = {
     success: '신고가 접수되었어요',
     error: '신고에 실패했어요. 다시 시도해주세요.',
   },
+  block: {
+    menuTitle: '이 사진을 어떻게 처리할까요?',
+    report: '신고하기',
+    block: '차단하기',
+    confirmTitle: '이 사용자를 차단할까요?',
+    confirmMessage: '차단하면 이 사용자의 사진이 더 이상 보이지 않아요.',
+    confirm: '차단',
+    success: '차단되었어요',
+    error: '차단에 실패했어요. 다시 시도해주세요.',
+  },
 };
 
 export type Translations = typeof ko;
