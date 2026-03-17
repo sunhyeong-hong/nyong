@@ -152,7 +152,9 @@ export const ko = {
     errorResendFailed: '재전송에 실패했어요.',
     privacyAgree: '개인정보처리방침에 동의합니다',
     privacyLink: '개인정보처리방침 보기',
-    errorPrivacyRequired: '개인정보처리방침에 동의해주세요.',
+    errorPrivacyRequired: '개인정보처리방침 및 이용약관에 동의해주세요.',
+    termsAgree: '이용약관에 동의합니다',
+    termsLink: '이용약관 보기',
   },
 
   // 설정 화면

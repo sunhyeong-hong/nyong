@@ -43,6 +43,7 @@ export default function OnboardingScreen() {
   const [otpCode, setOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -82,11 +83,15 @@ export default function OnboardingScreen() {
   }, [step]);
 
   const openPrivacyPolicy = () => {
-    WebBrowser.openBrowserAsync('https://github.com/sunhyeong-hong/nyong/blob/main/privacy-policy.md');
+    WebBrowser.openBrowserAsync('https://sunhyeong-hong.github.io/nyong/privacy-policy');
+  };
+
+  const openTerms = () => {
+    WebBrowser.openBrowserAsync('https://sunhyeong-hong.github.io/nyong/terms');
   };
 
   const handleGoogleSignIn = async () => {
-    if (!agreedToPrivacy) {
+    if (!agreedToPrivacy || !agreedToTerms) {
       Alert.alert(t().common.error, t().onboarding.errorPrivacyRequired);
       return;
     }
@@ -136,7 +141,7 @@ export default function OnboardingScreen() {
   };
 
   const handleAppleSignIn = async () => {
-    if (!agreedToPrivacy) {
+    if (!agreedToPrivacy || !agreedToTerms) {
       Alert.alert(t().common.error, t().onboarding.errorPrivacyRequired);
       return;
     }
@@ -329,10 +334,24 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* 이용약관 동의 */}
+          <View style={styles.privacyRow}>
+            <TouchableOpacity
+              style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}
+              onPress={() => setAgreedToTerms(!agreedToTerms)}
+            >
+              {agreedToTerms && <Text style={styles.checkmark}>✓</Text>}
+            </TouchableOpacity>
+            <Text style={styles.privacyText}>{t().onboarding.termsAgree}</Text>
+            <TouchableOpacity onPress={openTerms}>
+              <Text style={styles.privacyLink}>{t().onboarding.termsLink}</Text>
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity
-            style={[styles.googleButton, !agreedToPrivacy && styles.buttonDisabled]}
+            style={[styles.googleButton, (!agreedToPrivacy || !agreedToTerms) && styles.buttonDisabled]}
             onPress={handleGoogleSignIn}
-            disabled={isLoading || !agreedToPrivacy}
+            disabled={isLoading || !agreedToPrivacy || !agreedToTerms}
           >
             {isLoading ? (
               <ActivityIndicator color={colors.white} />
@@ -343,9 +362,9 @@ export default function OnboardingScreen() {
 
           {Platform.OS === 'ios' && (
             <TouchableOpacity
-              style={[styles.appleButton, !agreedToPrivacy && styles.buttonDisabled]}
+              style={[styles.appleButton, (!agreedToPrivacy || !agreedToTerms) && styles.buttonDisabled]}
               onPress={handleAppleSignIn}
-              disabled={isLoading || !agreedToPrivacy}
+              disabled={isLoading || !agreedToPrivacy || !agreedToTerms}
             >
               <Text style={styles.appleButtonText}>{t().onboarding.appleLogin}</Text>
             </TouchableOpacity>
@@ -353,7 +372,7 @@ export default function OnboardingScreen() {
 
           <TouchableOpacity
             onPress={() => {
-              if (!agreedToPrivacy) {
+              if (!agreedToPrivacy || !agreedToTerms) {
                 Alert.alert(t().common.error, t().onboarding.errorPrivacyRequired);
                 return;
               }

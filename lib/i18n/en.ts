@@ -154,7 +154,9 @@ export const en: Translations = {
     errorResendFailed: 'Failed to resend code.',
     privacyAgree: 'I agree to the Privacy Policy',
     privacyLink: 'View Privacy Policy',
-    errorPrivacyRequired: 'Please agree to the Privacy Policy.',
+    errorPrivacyRequired: 'Please agree to the Privacy Policy and Terms of Service.',
+    termsAgree: 'I agree to the Terms of Service',
+    termsLink: 'View Terms of Service',
   },
 
   // Settings Screen
