@@ -150,11 +150,12 @@ export const ko = {
     errorProfileSetup: '프로필 설정에 실패했어요.',
     errorInvalidOtp: '인증코드가 올바르지 않아요.',
     errorResendFailed: '재전송에 실패했어요.',
-    privacyAgree: '개인정보처리방침에 동의합니다',
+    privacyAgree: '(필수) 개인정보처리방침에 동의합니다',
     privacyLink: '개인정보처리방침 보기',
     errorPrivacyRequired: '개인정보처리방침 및 이용약관에 동의해주세요.',
-    termsAgree: '이용약관에 동의합니다',
+    termsAgree: '(필수) 이용약관에 동의합니다',
     termsLink: '이용약관 보기',
+    agreeAll: '전체 동의하기',
   },
 
   // 설정 화면

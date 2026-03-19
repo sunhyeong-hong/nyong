@@ -5,7 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from '../contexts/AuthContext';
 import { BgmProvider } from '../contexts/BgmContext';
 import { useEffect, useState } from 'react';
-import { Linking, Modal, NativeModules, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, Modal, NativeModules, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Constants from 'expo-constants';
 import { supabase } from '../lib/supabase';
 
@@ -58,7 +58,7 @@ export default function RootLayout() {
       <Modal visible={needsUpdate} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.overlay}>
           <View style={styles.card}>
-            <Text style={styles.emoji}>🐱</Text>
+            <Image source={require('../assets/nyong_wow.png')} style={styles.nyongImage} />
             <Text style={styles.title}>업데이트가 필요해요</Text>
             <Text style={styles.desc}>더 나은 뇽파민을 위해{'\n'}최신 버전으로 업데이트해 주세요!</Text>
             <TouchableOpacity style={styles.button} onPress={() => Linking.openURL('market://details?id=com.nyong.app')}>
@@ -139,8 +139,10 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 12,
   },
-  emoji: {
-    fontSize: 48,
+  nyongImage: {
+    width: 80,
+    height: 80,
+    resizeMode: 'contain',
   },
   title: {
     fontSize: 20,

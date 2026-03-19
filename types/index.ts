@@ -63,6 +63,7 @@ export interface Nyong {
   gender?: 'male' | 'female' | 'unknown';
   personality?: string;
   front_photo_url: string;
+  top_upload_photo_url?: string;
   photo_urls: string[];
   features: NyongFeatures;
   front_embedding?: number[];     // CLIP 정면 임베딩 (512차원)

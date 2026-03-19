@@ -22,6 +22,7 @@ import { colors, radius, formatCount } from '../lib/theme';
 import { Upload, Nyong } from '../types';
 import { PinchableImage } from '../components/PinchableImage';
 import { t } from '../lib/i18n';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 const GRID_PADDING = 20;
@@ -29,6 +30,21 @@ const PHOTO_GAP = 8;
 const PHOTO_SIZE = (width - GRID_PADDING * 2 - PHOTO_GAP * 2) / 3;
 
 const RANK_LABELS = ['1등', '2등', '3등'];
+
+const GALLERY_CACHE_PREFIX = 'nyong_gallery_';
+
+async function loadGalleryCache(nyongId: string) {
+  try {
+    const raw = await AsyncStorage.getItem(`${GALLERY_CACHE_PREFIX}${nyongId}`);
+    return raw ? JSON.parse(raw) as { nyong: any; uploads: any[]; punchers: Record<number, any[]> } : null;
+  } catch { return null; }
+}
+
+async function saveGalleryCache(nyongId: string, data: { nyong: any; uploads: any[]; punchers: Record<number, any[]> }) {
+  try {
+    await AsyncStorage.setItem(`${GALLERY_CACHE_PREFIX}${nyongId}`, JSON.stringify(data));
+  } catch {}
+}
 
 function RollingPuncher({ items }: { items: { nickname: string; totalHits: number }[] }) {
   const [index, setIndex] = useState(0);
@@ -174,11 +190,23 @@ export default function NyongGalleryScreen() {
     );
   };
 
+  // stale-while-revalidate: 캐시 즉시 표시 → 백그라운드 갱신
   useFocusEffect(
     useCallback(() => {
-      if (nyongId) {
-        fetchNyongAndUploads();
-      }
+      if (!nyongId) return;
+      let cancelled = false;
+      (async () => {
+        const cached = await loadGalleryCache(nyongId);
+        if (cached && !cancelled) {
+          setNyong(cached.nyong);
+          setUploads(cached.uploads);
+          setTopPunchers(cached.punchers);
+          setIsLoading(false);
+        }
+        // 백그라운드 갱신 (오프라인이면 조용히 실패)
+        if (!cancelled) fetchNyongAndUploads();
+      })();
+      return () => { cancelled = true; };
     }, [nyongId])
   );
 
@@ -249,14 +277,18 @@ export default function NyongGalleryScreen() {
       // uploads에서 실제 hits 합산하여 nyong stats 보정
       const calculatedTotalHits = fetchedUploads.reduce((sum: number, u: { hits: number }) => sum + (u.hits || 0), 0);
       const calculatedMonthlyHits = fetchedUploads.reduce((sum: number, u: { monthly_hits?: number }) => sum + (u.monthly_hits || 0), 0);
-      if (nyongData) {
-        setNyong({
-          ...nyongData,
-          total_hits: calculatedTotalHits,
-          monthly_hits: calculatedMonthlyHits,
-          upload_count: fetchedUploads.length,
-        });
+      const nyongWithStats = nyongData ? {
+        ...nyongData,
+        total_hits: calculatedTotalHits,
+        monthly_hits: calculatedMonthlyHits,
+        upload_count: fetchedUploads.length,
+      } : null;
+      if (nyongWithStats) {
+        setNyong(nyongWithStats);
       }
+
+      // 캐시 저장 (AsyncStorage)
+      saveGalleryCache(nyongId, { nyong: nyongWithStats, uploads: fetchedUploads, punchers });
     } catch (error) {
       console.error('Failed to fetch nyong gallery:', error);
     } finally {
@@ -284,64 +316,6 @@ export default function NyongGalleryScreen() {
     </TouchableOpacity>
   );
 
-
-  // 전체화면 모드
-  if (selectedIndex !== null) {
-    return (
-      <View
-        style={styles.fullscreenContainer}
-        onLayout={(e) => {
-          const h = e.nativeEvent.layout.height;
-          setViewerHeight(h);
-        }}
-      >
-        <FlatList
-          ref={fullscreenListRef}
-          data={uploads}
-          scrollEnabled={!isPinching}
-          renderItem={({ item }) => (
-            <View style={[styles.fullscreenPage, { height: viewerHeight }]}>
-              <PinchableImage
-                source={{ uri: item.image_url }}
-                style={styles.fullscreenImage}
-                contentFit="contain"
-                onPinchActive={setIsPinching}
-              />
-              <View style={styles.fullscreenInfo}>
-                <Text style={styles.fullscreenHits}>
-                  {item.tag ? (
-                    <>
-                      <Text style={styles.fullscreenTag}>#{item.tag}</Text>
-                      {` ${item.hits}뇽펀치 받았어요!`}
-                    </>
-                  ) : (
-                    `${item.hits}뇽펀치 받았어요!`
-                  )}
-                </Text>
-              </View>
-              {topPunchers[item.id]?.length > 0 && (
-                <RollingPuncher items={topPunchers[item.id]} />
-              )}
-            </View>
-          )}
-          keyExtractor={(item) => `fs-${item.id}`}
-          pagingEnabled
-          showsVerticalScrollIndicator={false}
-          getItemLayout={(_, index) => ({
-            length: viewerHeight,
-            offset: viewerHeight * index,
-            index,
-          })}
-        />
-        <TouchableOpacity
-          style={[styles.fullscreenClose, { top: insets.top + 12 }]}
-          onPress={() => setSelectedIndex(null)}
-        >
-          <Text style={styles.fullscreenCloseText}>×</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -447,6 +421,62 @@ export default function NyongGalleryScreen() {
           )}
         </View>
       )}
+
+      {/* 전체화면 사진 뷰어 (Modal로 감싸서 그리드 스크롤 위치 유지) */}
+      <Modal visible={selectedIndex !== null} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setSelectedIndex(null)}>
+        <View
+          style={styles.fullscreenContainer}
+          onLayout={(e) => {
+            const h = e.nativeEvent.layout.height;
+            setViewerHeight(h);
+          }}
+        >
+          <FlatList
+            ref={fullscreenListRef}
+            data={uploads}
+            scrollEnabled={!isPinching}
+            renderItem={({ item }) => (
+              <View style={[styles.fullscreenPage, { height: viewerHeight }]}>
+                <PinchableImage
+                  source={{ uri: item.image_url }}
+                  style={styles.fullscreenImage}
+                  contentFit="contain"
+                  onPinchActive={setIsPinching}
+                />
+                <View style={styles.fullscreenInfo}>
+                  <Text style={styles.fullscreenHits}>
+                    {item.tag ? (
+                      <>
+                        <Text style={styles.fullscreenTag}>#{item.tag}</Text>
+                        {` ${item.hits}뇽펀치 받았어요!`}
+                      </>
+                    ) : (
+                      `${item.hits}뇽펀치 받았어요!`
+                    )}
+                  </Text>
+                </View>
+                {topPunchers[item.id]?.length > 0 && (
+                  <RollingPuncher items={topPunchers[item.id]} />
+                )}
+              </View>
+            )}
+            keyExtractor={(item) => `fs-${item.id}`}
+            pagingEnabled
+            showsVerticalScrollIndicator={false}
+            getItemLayout={(_, index) => ({
+              length: viewerHeight,
+              offset: viewerHeight * index,
+              index,
+            })}
+          />
+          <TouchableOpacity
+            style={[styles.fullscreenClose, { top: insets.top + 12 }]}
+            onPress={() => setSelectedIndex(null)}
+          >
+            <Text style={styles.fullscreenCloseText}>×</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </View>
   );
 }

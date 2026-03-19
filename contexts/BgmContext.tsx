@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState, ReactNod
 import { AppState } from 'react-native';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from './AuthContext';
 
 const BGM_PREF_KEY = 'nyong_app_bgm_enabled';
 const BGM_PROMO_SEEN_KEY = 'nyong_bgm_promo_seen';
@@ -37,6 +38,8 @@ export function useBgm() {
 }
 
 export function BgmProvider({ children }: { children: ReactNode }) {
+  const { session } = useAuth();
+  const isLoggedIn = !!session;
   const [isBgmOn, setIsBgmOn] = useState(false);
   const [showPromo, setShowPromo] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
@@ -88,9 +91,17 @@ export function BgmProvider({ children }: { children: ReactNode }) {
     isPlayingRef.current = shouldPlay;
   };
 
-  // Load preference and sound
+  // Load preference and sound — only when logged in
   useEffect(() => {
     mountedRef.current = true;
+
+    if (!isLoggedIn) {
+      // 로그아웃 상태: BGM 정지
+      soundRef.current?.unloadAsync();
+      soundRef.current = null;
+      isPlayingRef.current = false;
+      return () => { mountedRef.current = false; };
+    }
 
     const init = async () => {
       try {
@@ -136,7 +147,7 @@ export function BgmProvider({ children }: { children: ReactNode }) {
       soundRef.current?.unloadAsync();
       soundRef.current = null;
     };
-  }, []);
+  }, [isLoggedIn]);
 
   // AppState: pause on background, resume on foreground
   useEffect(() => {

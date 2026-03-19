@@ -28,6 +28,7 @@ import { registerForPushNotifications } from '../../lib/notifications';
 import { MOCK_DELIVERIES } from '../../lib/mockData';
 import { PinchableImage } from '../../components/PinchableImage';
 import { useBgm } from '../../contexts/BgmContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 const GRID_PADDING = 12;
@@ -182,24 +183,37 @@ export default function GalleryScreen() {
     }
   }, [pendingNotification, isLoading, session]);
 
+  // 캐시를 session 유무와 관계없이 먼저 로드 (비행기 모드 대응)
   useEffect(() => {
     if (isTestMode) {
       setItems(MOCK_DELIVERIES);
       setIsLoadingCats(false);
       return;
     }
-    if (session?.user?.id) {
-      fetchDeliveries();
-    } else if (!isLoading) {
-      setIsLoadingCats(false);
-    }
+    AsyncStorage.getItem('gallery_deliveries').then((raw) => {
+      if (raw) {
+        setItems(JSON.parse(raw));
+        setIsLoadingCats(false);
+      }
+      if (session?.user?.id) {
+        fetchDeliveries();
+      } else if (!isLoading) {
+        setIsLoadingCats(false);
+      }
+    }).catch(() => {
+      if (session?.user?.id) {
+        fetchDeliveries();
+      } else if (!isLoading) {
+        setIsLoadingCats(false);
+      }
+    });
   }, [session, isTestMode, isLoading]);
 
-  // 화면 복귀 시 갤러리 갱신
+  // 화면 복귀 시 갤러리 갱신 (스크롤 위치 유지를 위해 로딩 스피너 없이 조용히 갱신)
   useFocusEffect(
     useCallback(() => {
       if (session?.user?.id && !isTestMode) {
-        fetchDeliveries();
+        silentRefreshDeliveries();
       }
       // 서브갤러리 복귀 시 nyongExtra 상태 리프레시
       if (selectedNyongGroup?.nyongId && session?.user?.id) {
@@ -235,25 +249,27 @@ export default function GalleryScreen() {
     if (!session?.user?.id || isTestMode) return;
     setIsRefreshing(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('deliveries')
         .select(`*, upload:uploads(*, nyong:nyongs(*))`)
         .eq('receiver_id', session.user.id)
         .in('status', ['delivered', 'received'])
         .order('delivered_at', { ascending: false })
         .range(0, PAGE_SIZE - 1);
+      if (error) throw error;
       const filtered = (data || []).filter((item) => !blockedUserIds.includes(item.upload?.user_id));
       setItems(filtered);
       setHasMore((data?.length ?? 0) === PAGE_SIZE);
+    } catch {
+      // 오프라인이면 기존 데이터 유지
     } finally {
       setIsRefreshing(false);
     }
   }, [session, isTestMode, blockedUserIds]);
 
   const fetchDeliveries = async () => {
-    setIsLoadingCats(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('deliveries')
         .select(`*, upload:uploads(*, nyong:nyongs(*))`)
         .eq('receiver_id', session?.user?.id)
@@ -261,13 +277,36 @@ export default function GalleryScreen() {
         .order('delivered_at', { ascending: false })
         .range(0, PAGE_SIZE - 1);
 
+      if (error) throw error;
       const filtered = (data || []).filter((item) => !blockedUserIds.includes(item.upload?.user_id));
       setItems(filtered);
       setHasMore((data?.length ?? 0) === PAGE_SIZE);
+      AsyncStorage.setItem('gallery_deliveries', JSON.stringify(filtered)).catch(() => {});
     } catch {
-      // silent
+      // 오프라인이면 기존 데이터 유지
     } finally {
       setIsLoadingCats(false);
+    }
+  };
+
+  // 스크롤 위치를 유지하면서 데이터만 조용히 갱신
+  const silentRefreshDeliveries = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('deliveries')
+        .select(`*, upload:uploads(*, nyong:nyongs(*))`)
+        .eq('receiver_id', session?.user?.id)
+        .in('status', ['delivered', 'received'])
+        .order('delivered_at', { ascending: false })
+        .range(0, PAGE_SIZE - 1);
+
+      if (error) throw error;
+      const filtered = (data || []).filter((item) => !blockedUserIds.includes(item.upload?.user_id));
+      setItems(filtered);
+      setHasMore((data?.length ?? 0) === PAGE_SIZE);
+      AsyncStorage.setItem('gallery_deliveries', JSON.stringify(filtered)).catch(() => {});
+    } catch {
+      // 오프라인이면 기존 데이터 유지
     }
   };
 
@@ -789,39 +828,38 @@ export default function GalleryScreen() {
     );
   }
 
-  if (selectedIndex !== null) {
-    const fullscreenData = selectedNyongGroup ? selectedNyongGroup.deliveries : sortedItems;
-    return (
-      <View
-        style={styles.fullscreenContainer}
-        onLayout={(e) => setViewerHeight(e.nativeEvent.layout.height)}
-      >
-        <FlatList
-          ref={fullscreenListRef}
-          data={fullscreenData}
-          renderItem={renderFullscreenItem}
-          keyExtractor={(item) => `fs-${item.id}`}
-          pagingEnabled
-          scrollEnabled={!isPinching}
-          showsVerticalScrollIndicator={false}
-          getItemLayout={(_, index) => ({
-            length: viewerHeight,
-            offset: viewerHeight * index,
-            index,
-          })}
-        />
-        <TouchableOpacity
-          style={[styles.fullscreenClose, { top: insets.top + 8 }]}
-          onPress={() => setSelectedIndex(null)}
-        >
-          <Text style={styles.fullscreenCloseText}>{'\u00D7'}</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const fullscreenData = selectedNyongGroup ? selectedNyongGroup.deliveries : sortedItems;
 
   return (
     <View style={styles.container}>
+      {/* 전체화면 사진 뷰어 (Modal로 감싸서 그리드 스크롤 위치 유지) */}
+      <Modal visible={selectedIndex !== null} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setSelectedIndex(null)}>
+        <View
+          style={styles.fullscreenContainer}
+          onLayout={(e) => setViewerHeight(e.nativeEvent.layout.height)}
+        >
+          <FlatList
+            ref={fullscreenListRef}
+            data={fullscreenData}
+            renderItem={renderFullscreenItem}
+            keyExtractor={(item) => `fs-${item.id}`}
+            pagingEnabled
+            scrollEnabled={!isPinching}
+            showsVerticalScrollIndicator={false}
+            getItemLayout={(_, index) => ({
+              length: viewerHeight,
+              offset: viewerHeight * index,
+              index,
+            })}
+          />
+          <TouchableOpacity
+            style={[styles.fullscreenClose, { top: insets.top + 8 }]}
+            onPress={() => setSelectedIndex(null)}
+          >
+            <Text style={styles.fullscreenCloseText}>{'\u00D7'}</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
       <NotificationBanner
         visible={!!incomingCat}
         catImage={incomingCat?.image_url || ''}
@@ -830,8 +868,8 @@ export default function GalleryScreen() {
         onPress={handleNotificationPress}
         onDismiss={clearIncomingCat}
       />
-      {isLoadingCats || (!session && !isTestMode) ? (
-        // 세션 없으면 onboarding 리다이렉트 중 — 빈 화면 대신 스피너 유지
+      {isLoadingCats || (!session && !isTestMode && items.length === 0) ? (
+        // 세션 없고 캐시도 없으면 onboarding 리다이렉트 중 — 스피너 유지
         <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
       ) : sortMode === 'name' && !selectedNyongGroup ? (
         <FlatList

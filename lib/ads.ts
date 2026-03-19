@@ -20,7 +20,7 @@ function getAdUnitId(): string {
   if (__DEV__ && ads?.TestIds) return ads.TestIds.REWARDED;
   return Platform.OS === 'ios'
     ? 'ca-app-pub-4591317861924477/7520041832'
-    : 'ca-app-pub-4591317861924477/8689212330';
+    : 'ca-app-pub-4591317861924477/4348574272';
 }
 
 /**

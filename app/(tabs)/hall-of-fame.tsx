@@ -19,6 +19,7 @@ import { CatPaw } from '../../components/CatPaw';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { MOCK_TOP_NYONGS } from '../../lib/mockData';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -41,7 +42,14 @@ export default function HallOfFameScreen() {
       setIsLoading(false);
       return;
     }
-    fetchTopNyongs(timeRange);
+    // 캐시 먼저 보여주고 서버에서 갱신
+    AsyncStorage.getItem(`hall_of_fame_${timeRange}`).then((raw) => {
+      if (raw) {
+        setTopNyongs(JSON.parse(raw));
+        setIsLoading(false);
+      }
+      fetchTopNyongs(timeRange);
+    }).catch(() => fetchTopNyongs(timeRange));
   }, [isTestMode, timeRange]);
 
   const onRefresh = useCallback(async () => {
@@ -63,8 +71,10 @@ export default function HallOfFameScreen() {
 
       if (error) throw error;
       setTopNyongs(data || []);
+      AsyncStorage.setItem(`hall_of_fame_${range}`, JSON.stringify(data || [])).catch(() => {});
     } catch (error) {
       console.error('Failed to fetch top nyongs:', error);
+      // 오프라인이면 캐시 데이터 유지
     } finally {
       setIsLoading(false);
     }
@@ -80,6 +90,9 @@ export default function HallOfFameScreen() {
         return format(t().hallOfFame.headerTitle, { month: new Date().getMonth() + 1 });
     }
   };
+
+  const getPhotoUrl = (item: Nyong) =>
+    timeRange === 'daily' ? (item.top_upload_photo_url ?? item.front_photo_url) : item.front_photo_url;
 
   const FILTERS = [
     { key: 'daily' as const, label: t().hallOfFame.filterDaily },
@@ -151,7 +164,7 @@ export default function HallOfFameScreen() {
               >
                 <View style={styles.photoWrapper}>
                   <Image
-                    source={{ uri: first.front_photo_url }}
+                    source={{ uri: getPhotoUrl(first) }}
                     style={styles.firstPhoto}
                   />
                   <View style={styles.firstRankBadge}>
@@ -182,7 +195,7 @@ export default function HallOfFameScreen() {
               >
                 <View style={styles.photoWrapper}>
                   <Image
-                    source={{ uri: item.front_photo_url }}
+                    source={{ uri: getPhotoUrl(item) }}
                     style={styles.photo}
                   />
                   <View style={styles.rankBadge}>

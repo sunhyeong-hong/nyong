@@ -77,7 +77,7 @@ export default function OnboardingScreen() {
         setStep('welcome');
         return true;
       }
-      return true; // welcome: 루트 — 모달 dismiss 방지
+      return false; // welcome: 시스템 기본 동작 (앱 종료)
     });
     return () => handler.remove();
   }, [step]);
@@ -319,7 +319,25 @@ export default function OnboardingScreen() {
           </Text>
         </View>
 
-        <View style={styles.buttonContainer}>
+        {/* 동의 영역 */}
+        <View style={styles.agreementContainer}>
+          {/* 전체 동의 */}
+          <TouchableOpacity
+            style={styles.agreeAllRow}
+            onPress={() => {
+              const allChecked = agreedToPrivacy && agreedToTerms;
+              setAgreedToPrivacy(!allChecked);
+              setAgreedToTerms(!allChecked);
+            }}
+          >
+            <View style={[styles.checkbox, agreedToPrivacy && agreedToTerms && styles.checkboxChecked]}>
+              {agreedToPrivacy && agreedToTerms && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={styles.agreeAllText}>{t().onboarding.agreeAll}</Text>
+          </TouchableOpacity>
+
+          <View style={styles.agreementDivider} />
+
           {/* 개인정보처리방침 동의 */}
           <View style={styles.privacyRow}>
             <TouchableOpacity
@@ -328,9 +346,8 @@ export default function OnboardingScreen() {
             >
               {agreedToPrivacy && <Text style={styles.checkmark}>✓</Text>}
             </TouchableOpacity>
-            <Text style={styles.privacyText}>{t().onboarding.privacyAgree}</Text>
-            <TouchableOpacity onPress={openPrivacyPolicy}>
-              <Text style={styles.privacyLink}>{t().onboarding.privacyLink}</Text>
+            <TouchableOpacity onPress={openPrivacyPolicy} style={{ flex: 1 }}>
+              <Text style={styles.privacyTextLink}>{t().onboarding.privacyAgree}</Text>
             </TouchableOpacity>
           </View>
 
@@ -342,12 +359,13 @@ export default function OnboardingScreen() {
             >
               {agreedToTerms && <Text style={styles.checkmark}>✓</Text>}
             </TouchableOpacity>
-            <Text style={styles.privacyText}>{t().onboarding.termsAgree}</Text>
-            <TouchableOpacity onPress={openTerms}>
-              <Text style={styles.privacyLink}>{t().onboarding.termsLink}</Text>
+            <TouchableOpacity onPress={openTerms} style={{ flex: 1 }}>
+              <Text style={styles.privacyTextLink}>{t().onboarding.termsAgree}</Text>
             </TouchableOpacity>
           </View>
+        </View>
 
+        <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.googleButton, (!agreedToPrivacy || !agreedToTerms) && styles.buttonDisabled]}
             onPress={handleGoogleSignIn}
@@ -656,6 +674,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
+  agreementContainer: {
+    paddingHorizontal: 40,
+    marginBottom: 12,
+  },
+  agreeAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  agreeAllText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  agreementDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginBottom: 8,
+  },
   privacyRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -681,13 +719,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-  privacyText: {
+  privacyTextLink: {
     fontSize: 13,
-    color: colors.text,
-    flex: 1,
-  },
-  privacyLink: {
-    fontSize: 12,
     color: colors.primary,
     textDecorationLine: 'underline',
   },

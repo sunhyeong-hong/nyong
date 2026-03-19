@@ -152,11 +152,12 @@ export const en: Translations = {
     errorProfileSetup: 'Failed to set up profile.',
     errorInvalidOtp: 'Invalid verification code.',
     errorResendFailed: 'Failed to resend code.',
-    privacyAgree: 'I agree to the Privacy Policy',
+    privacyAgree: '(Required) I agree to the Privacy Policy',
     privacyLink: 'View Privacy Policy',
     errorPrivacyRequired: 'Please agree to the Privacy Policy and Terms of Service.',
-    termsAgree: 'I agree to the Terms of Service',
+    termsAgree: '(Required) I agree to the Terms of Service',
     termsLink: 'View Terms of Service',
+    agreeAll: 'Agree to all',
   },
 
   // Settings Screen
