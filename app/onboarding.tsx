@@ -20,6 +20,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, radius } from '../lib/theme';
 import { t, format } from '../lib/i18n';
+import { reportError } from '../lib/errorLogger';
 
 const RESEND_COOLDOWN = 60;
 
@@ -83,11 +84,11 @@ export default function OnboardingScreen() {
   }, [step]);
 
   const openPrivacyPolicy = () => {
-    WebBrowser.openBrowserAsync('https://sunhyeong-hong.github.io/nyong/privacy-policy');
+    WebBrowser.openBrowserAsync('https://nyongpamine.com/nyong/privacy-policy');
   };
 
   const openTerms = () => {
-    WebBrowser.openBrowserAsync('https://sunhyeong-hong.github.io/nyong/terms');
+    WebBrowser.openBrowserAsync('https://nyongpamine.com/nyong/terms');
   };
 
   const handleGoogleSignIn = async () => {
@@ -134,6 +135,7 @@ export default function OnboardingScreen() {
       }
     } catch (error: any) {
       console.error('Google login error:', error);
+      reportError(error, 'onboarding/googleLogin');
       Alert.alert(t().common.error, error.message || t().onboarding.errorGoogleLogin);
     } finally {
       setIsLoading(false);
@@ -168,6 +170,7 @@ export default function OnboardingScreen() {
     } catch (error: any) {
       if (error.code === 'ERR_REQUEST_CANCELED') return;
       console.error('Apple login error:', error);
+      reportError(error, 'onboarding/appleLogin');
       Alert.alert(t().common.error, error.message || t().onboarding.errorAppleLogin);
     } finally {
       setIsLoading(false);
