@@ -418,6 +418,11 @@ UPDATE app_config SET min_android_version_code = 1 WHERE id = 1;
 7. 양쪽 스토어 배포 확인 후 DB 업데이트: UPDATE app_config SET min_android_version_code = N
 ```
 
+## 링크
+
+- [개인정보처리방침](https://nyongpamine.com/nyong/privacy-policy)
+- [이용약관](https://nyongpamine.com/nyong/terms)
+
 ## 라이선스
 
 MIT License
